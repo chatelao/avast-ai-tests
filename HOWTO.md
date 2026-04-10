@@ -12,39 +12,39 @@ This guide provides a step-by-step checklist to benchmark LLMs directly on a Vas
 - [ ] **Rent:** Select an offer and rent the instance.
 - [ ] **Get SSH Details:** Once the instance is ready, note the SSH IP and Port from the "Instances" tab.
 
-## Phase 3: On-Instance Setup & Benchmarking
-- [ ] **SSH into the instance:**
+## Phase 3: Optimized On-Instance Setup & Benchmarking
+To minimize runtime on expensive hardware, we maximize startup efficiency by running the LLM engine and setup tasks in parallel.
+
+- [ ] **SSH and Start LLM Engine Immediately:**
+  Run the engine in detached mode (`-d`) so it starts pulling the model while you finish setup.
   ```bash
   ssh -p <PORT> root@<IP>
-  ```
-- [ ] **Clone the Repository:**
-  ```bash
-  git clone <repo-url>
-  cd avast-ai-tests
-  ```
-- [ ] **Install Dependencies:**
-  ```bash
-  pip install -r requirements.txt
-  ```
-- [ ] **Start LLM Engine:** (In a separate terminal or background)
-  ```bash
-  docker run --gpus all \
+  docker run -d --gpus all \
              -v ~/.cache/huggingface:/root/.cache/huggingface \
              -e HF_TOKEN=<your_token> \
              -p 8000:8000 vllm/vllm-openai:v0.4.0 \
              --model google/gemma-2-9b-it
   ```
-- [ ] **Run Orchestrator:**
+- [ ] **Setup Benchmarking Tools (Parallel to Download):**
+  While the Docker image is pulling in the background, clone the repo and install requirements.
+  ```bash
+  git clone <repo-url>
+  cd avast-ai-tests
+  pip install -r requirements.txt
+  ```
+- [ ] **Run Orchestrator with Auto-Ready:**
+  The orchestrator will automatically wait for the API to be ready before starting the benchmark.
   ```bash
   python3 orchestrator.py --gpu "RTX 4090" --model "gemma-2-9b-it" --url http://localhost:8000 --run
   ```
 
-## Phase 4: Analyze Results
+## Phase 4: Analyze Results & Immediate Cleanup
+To avoid unnecessary charges, analyze your results and destroy the instance immediately.
 - [ ] **Check Output File:** Results are saved as `benchmark_<gpu>_<timestamp>.json`.
 - [ ] **Verify Metrics:**
     - **TTFT:** Time to First Token (lower is better).
     - **ITL:** Inter-Token Latency (lower is better).
     - **TPS:** Tokens Per Second (higher is better).
 
-## Phase 5: Cleanup
-- [ ] **Destroy Instance:** Go back to the [Vast.ai Console](https://vast.ai/console/instances/) and destroy the instance to prevent unwanted charges.
+## Phase 5: Fast Cleanup
+- [ ] **Destroy Instance:** Immediately go back to the [Vast.ai Console](https://vast.ai/console/instances/) and destroy the instance. For expensive hardware, every minute counts.
