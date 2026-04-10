@@ -48,8 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VLLM_TARGET_DEVICE: cpu
-      VLLM_DEVICE: cpu
       VLLM_NO_USAGE_STATS: 1
+      # GHA runners have limited RAM (~7GB), reduce KV cache space
+      VLLM_CPU_KVCACHE_SPACE: 1
     steps:
     - uses: actions/checkout@v4
 
@@ -77,7 +78,8 @@ jobs:
           --dtype float \
           --enforce-eager \
           --max-model-len 512 \
-          --block-size 16 &
+          --block-size 16 \
+          --chat-template tests/dummy_chat_template.jinja > vllm.log 2>&1 &
 
         # Wait for vLLM to be ready
         # If vLLM fails to start (e.g. CPU instruction set mismatch), we'll catch it in the next step
@@ -91,7 +93,7 @@ jobs:
           --gpu mock-cpu-gpu \
           --concurrency-levels 1 2 \
           --requests-per-level 5 \
-          --run
+          --run || (echo "Benchmark failed, printing vLLM logs:" && cat vllm.log && exit 1)
 
     - name: Check benchmark results
       run: |
