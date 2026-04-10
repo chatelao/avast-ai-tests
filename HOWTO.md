@@ -19,11 +19,17 @@ To minimize runtime on expensive hardware, we maximize startup efficiency by run
   Run the engine in detached mode (`-d`) so it starts pulling the model while you finish setup.
   ```bash
   ssh -p <PORT> root@<IP>
+  # Recommendation: use the module entrypoint for better stability in some environments
+  # python -m vllm.entrypoints.openai.api_server --model google/gemma-2-9b-it ...
   docker run -d --gpus all \
              -v ~/.cache/huggingface:/root/.cache/huggingface \
              -e HF_TOKEN=<your_token> \
              -p 8000:8000 vllm/vllm-openai:v0.4.0 \
-             --model google/gemma-2-9b-it
+             --model google/gemma-2-9b-it \
+             --max-model-len 512 \
+             --block-size 16 \
+             --dtype float \
+             --enforce-eager
   ```
 - [ ] **Setup Benchmarking Tools (Parallel to Download):**
   While the Docker image is pulling in the background, clone the repo and install requirements.

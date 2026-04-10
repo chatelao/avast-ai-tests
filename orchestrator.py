@@ -17,7 +17,7 @@ class Orchestrator:
             self._vast = VastManager(api_key=self.api_key)
         return self._vast
 
-    async def wait_for_api_ready(self, url, timeout=900):
+    async def wait_for_api_ready(self, url, timeout=600):
         print(f"Waiting for LLM API to be ready at {url}...")
         start_time = time.time()
         async with aiohttp.ClientSession() as session:
@@ -33,7 +33,7 @@ class Orchestrator:
         print("Timeout waiting for API to be ready.")
         return False
 
-    async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10):
+    async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10, wait_timeout=600, prompt="Explain quantum physics in one sentence."):
         print(f"Starting benchmark suite for {model_name} on {gpu_name}")
 
         instance_id = None
@@ -67,13 +67,13 @@ class Orchestrator:
                 # Implementation Note: In a production environment, this step would involve
                 # using an SSH library (like Paramiko) to run 'docker run' on the remote host.
                 # Example:
-                # ssh.exec_command("docker run -d --gpus all -p 8000:8000 vllm/vllm-openai --model gemma-7b")
+                # ssh.exec_command("docker run -d --gpus all -p 8000:8000 vllm/vllm-openai --model gemma-2-9b-it --max-model-len 512 --block-size 16")
 
                 print("To complete the test, ensure the LLM engine is running on the remote host.")
                 print(f"URL: {api_url}")
 
             # 2.5 Wait for API to be ready
-            if not await self.wait_for_api_ready(api_url):
+            if not await self.wait_for_api_ready(api_url, timeout=wait_timeout):
                 print("Exiting as API never became ready.")
                 return
 
@@ -85,7 +85,7 @@ class Orchestrator:
                 print(f"Running benchmark with concurrency: {c}")
                 # We attempt to run the actual load tester
                 try:
-                    result = await tester.run_benchmark(c, requests_per_level)
+                    result = await tester.run_benchmark(c, requests_per_level, prompt=prompt)
                     if result:
                         result["gpu"] = gpu_name
                         result["model"] = model_name
@@ -118,6 +118,8 @@ if __name__ == "__main__":
     parser.add_argument("--run", action="store_true", help="Actually run the suite (requires Vast.ai credits)")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16], help="Concurrency levels to test")
     parser.add_argument("--requests-per-level", type=int, default=10, help="Number of requests per concurrency level")
+    parser.add_argument("--wait-timeout", type=int, default=600, help="Timeout in seconds to wait for API to be ready")
+    parser.add_argument("--prompt", type=str, default="Explain quantum physics in one sentence.", help="Prompt to use for benchmarking")
 
     args = parser.parse_args()
     orch = Orchestrator()
@@ -128,7 +130,9 @@ if __name__ == "__main__":
             args.model,
             url=args.url,
             concurrency_levels=args.concurrency_levels,
-            requests_per_level=args.requests_per_level
+            requests_per_level=args.requests_per_level,
+            wait_timeout=args.wait_timeout,
+            prompt=args.prompt
         ))
     else:
         print("Orchestrator initialized.")
