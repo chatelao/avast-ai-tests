@@ -71,8 +71,9 @@ jobs:
         # Use a very small model (facebook/opt-125m) and CPU mode
         # dtype float is safer on CPU than half or auto
         # Reduce max-model-len and block-size for lower memory consumption on CI
-        vllm serve facebook/opt-125m \
-          --device cpu \
+        # Note: using the module entrypoint as the CLI might have metadata issues
+        python -m vllm.entrypoints.openai.api_server \
+          --model facebook/opt-125m \
           --dtype float \
           --enforce-eager \
           --max-model-len 512 \
