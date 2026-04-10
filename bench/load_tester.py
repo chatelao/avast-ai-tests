@@ -95,9 +95,10 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, required=True, help="Model name")
     parser.add_argument("--concurrency", type=int, default=1, help="Number of concurrent users")
     parser.add_argument("--requests", type=int, default=10, help="Total number of requests")
+    parser.add_argument("--prompt", type=str, default="Explain quantum physics in one sentence.", help="Prompt to use for benchmarking")
 
     args = parser.parse_args()
 
     tester = LoadTester(args.url, args.model)
-    summary = asyncio.run(tester.run_benchmark(args.concurrency, args.requests))
+    summary = asyncio.run(tester.run_benchmark(args.concurrency, args.requests, prompt=args.prompt))
     print(json.dumps(summary, indent=2))
