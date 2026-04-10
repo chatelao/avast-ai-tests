@@ -1,4 +1,4 @@
-# avast-ai-tests
+# vast-ai-tests
 
 ## Source
 https://huggingface.co/google/gemma-4-E4B-it
