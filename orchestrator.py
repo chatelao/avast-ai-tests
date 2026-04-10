@@ -2,6 +2,7 @@ import asyncio
 import json
 import time
 import argparse
+import aiohttp
 from infra.vast_manager import VastManager
 from bench.load_tester import LoadTester
 
@@ -15,6 +16,22 @@ class Orchestrator:
         if self._vast is None:
             self._vast = VastManager(api_key=self.api_key)
         return self._vast
+
+    async def wait_for_api_ready(self, url, timeout=900):
+        print(f"Waiting for LLM API to be ready at {url}...")
+        start_time = time.time()
+        async with aiohttp.ClientSession() as session:
+            while time.time() - start_time < timeout:
+                try:
+                    async with session.get(f"{url}/v1/models") as response:
+                        if response.status == 200:
+                            print("API is ready!")
+                            return True
+                except Exception:
+                    pass
+                await asyncio.sleep(10)
+        print("Timeout waiting for API to be ready.")
+        return False
 
     async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10):
         print(f"Starting benchmark suite for {model_name} on {gpu_name}")
@@ -54,6 +71,11 @@ class Orchestrator:
 
                 print("To complete the test, ensure the LLM engine is running on the remote host.")
                 print(f"URL: {api_url}")
+
+            # 2.5 Wait for API to be ready
+            if not await self.wait_for_api_ready(api_url):
+                print("Exiting as API never became ready.")
+                return
 
             # 3. Run benchmarks
             tester = LoadTester(api_url, model_name)
