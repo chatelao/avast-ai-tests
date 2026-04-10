@@ -33,7 +33,7 @@ class Orchestrator:
         print("Timeout waiting for API to be ready.")
         return False
 
-    async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10, wait_timeout=600, prompt="Explain quantum physics in one sentence."):
+    async def run_suite(self, gpu_name, model_name, url=None, template_hash=None, concurrency_levels=[1, 4, 16], requests_per_level=10, wait_timeout=600, prompt="Explain quantum physics in one sentence."):
         print(f"Starting benchmark suite for {model_name} on {gpu_name}")
 
         instance_id = None
@@ -49,7 +49,7 @@ class Orchestrator:
 
             # Select the best offer (lowest price per hour)
             offer_id = offers[0]['id']
-            instance_id = self.vast.rent_instance(offer_id)
+            instance_id = self.vast.rent_instance(offer_id, template_hash=template_hash)
             if not instance_id:
                 return
 
@@ -115,6 +115,7 @@ if __name__ == "__main__":
     parser.add_argument("--gpu", type=str, default="RTX_4090", help="GPU model to test")
     parser.add_argument("--model", type=str, default="gemma-7b", help="Model name")
     parser.add_argument("--url", type=str, help="Existing API endpoint URL (skips provisioning)")
+    parser.add_argument("--template-hash", type=str, help="Vast.ai template hash to use for provisioning")
     parser.add_argument("--run", action="store_true", help="Actually run the suite (requires Vast.ai credits)")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16], help="Concurrency levels to test")
     parser.add_argument("--requests-per-level", type=int, default=10, help="Number of requests per concurrency level")
@@ -129,6 +130,7 @@ if __name__ == "__main__":
             args.gpu,
             args.model,
             url=args.url,
+            template_hash=args.template_hash,
             concurrency_levels=args.concurrency_levels,
             requests_per_level=args.requests_per_level,
             wait_timeout=args.wait_timeout,
