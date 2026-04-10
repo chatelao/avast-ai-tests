@@ -47,6 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VLLM_TARGET_DEVICE: cpu
+      VLLM_DEVICE: cpu
       VLLM_NO_USAGE_STATS: 1
     steps:
     - uses: actions/checkout@v4
@@ -61,13 +62,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         # Install vLLM-CPU which is optimized for CPU-only environments
-        # We need the extra-index-url for torch+cpu dependencies
         pip install vllm-cpu --extra-index-url https://download.pytorch.org/whl/cpu
+        # Some versions of vLLM CLI check for the 'vllm' package metadata
+        pip install --no-deps vllm
 
     - name: Run vLLM server
       run: |
         # Use a very small model (facebook/opt-125m) and CPU mode
-        # Using 'vllm serve' which is the recommended entrypoint in newer versions
+        # dtype float is safer on CPU than half or auto
         vllm serve facebook/opt-125m \
           --device cpu \
           --dtype float \
@@ -75,7 +77,8 @@ jobs:
           --max-model-len 1024 &
 
         # Wait for vLLM to be ready
-        timeout 600 bash -c 'until curl -s http://localhost:8000/v1/models; do sleep 10; done'
+        # If vLLM fails to start (e.g. CPU instruction set mismatch), we'll catch it in the next step
+        timeout 300 bash -c 'until curl -s http://localhost:8000/v1/models; do sleep 10; done' || (echo "vLLM failed to start within timeout" && exit 1)
 
     - name: Run Orchestrator against vLLM
       run: |
