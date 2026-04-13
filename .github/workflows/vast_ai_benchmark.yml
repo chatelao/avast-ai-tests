@@ -10,7 +10,7 @@ on:
       model:
         description: 'LLM model name'
         required: true
-        default: 'google/gemma-2-9b-it'
+        default: 'facebook/opt-125m'
         type: choice
         options:
         - 'facebook/opt-125m'
