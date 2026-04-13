@@ -55,7 +55,7 @@ class VastManager:
             print(f"Failed to rent instance: {result}")
             return None
 
-    def wait_for_ssh(self, instance_id, timeout=600):
+    def wait_for_ssh(self, instance_id, timeout=1200):
         print(f"Waiting for instance {instance_id} to be ready...")
         start_time = time.time()
         while time.time() - start_time < timeout:

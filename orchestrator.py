@@ -20,7 +20,7 @@ class Orchestrator:
             self._vast = VastManager(api_key=self.api_key)
         return self._vast
 
-    async def wait_for_api_ready(self, url, timeout=600):
+    async def wait_for_api_ready(self, url, timeout=1200):
         print(f"Waiting for LLM API to be ready at {url}...")
         start_time = time.time()
         async with aiohttp.ClientSession() as session:
@@ -57,7 +57,7 @@ class Orchestrator:
         except Exception as e:
             print(f"Failed to send email: {e}")
 
-    async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10, wait_timeout=600, prompt="Explain quantum physics in one sentence.", email_config=None, shutdown_at_exit=False, template_hash=None):
+    async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10, wait_timeout=1200, prompt="Explain quantum physics in one sentence.", email_config=None, shutdown_at_exit=False, template_hash=None):
         print(f"Starting benchmark suite for {model_name} on {gpu_name}")
 
         instance_id = None
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     parser.add_argument("--run", action="store_true", help="Actually run the suite (requires Vast.ai credits)")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16], help="Concurrency levels to test")
     parser.add_argument("--requests-per-level", type=int, default=10, help="Number of requests per concurrency level")
-    parser.add_argument("--wait-timeout", type=int, default=600, help="Timeout in seconds to wait for API to be ready")
+    parser.add_argument("--wait-timeout", type=int, default=1200, help="Timeout in seconds to wait for API to be ready")
     parser.add_argument("--prompt", type=str, default="Explain quantum physics in one sentence.", help="Prompt to use for benchmarking")
     parser.add_argument("--template-hash", type=str, default="7e24e4e5c2e551d012344a9bf4f141c2", help="Vast.ai template hash to use for provisioning")
 
