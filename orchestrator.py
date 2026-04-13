@@ -103,7 +103,10 @@ class Orchestrator:
                 # Example:
                 # ssh.exec_command("docker run -d --gpus all -p 8000:8000 vllm/vllm-openai --model gemma-2-9b-it --max-model-len 512 --block-size 16")
 
-                print("To complete the test, ensure the LLM engine is running on the remote host.")
+                if template_hash:
+                    print(f"Using template {template_hash}. Waiting for preinstalled vLLM to start...")
+                else:
+                    print("To complete the test, ensure the LLM engine is running on the remote host.")
                 print(f"URL: {api_url}")
 
             # 2.5 Wait for API to be ready
@@ -168,7 +171,7 @@ if __name__ == "__main__":
     parser.add_argument("--requests-per-level", type=int, default=10, help="Number of requests per concurrency level")
     parser.add_argument("--wait-timeout", type=int, default=600, help="Timeout in seconds to wait for API to be ready")
     parser.add_argument("--prompt", type=str, default="Explain quantum physics in one sentence.", help="Prompt to use for benchmarking")
-    parser.add_argument("--template-hash", type=str, help="Vast.ai template hash to use for provisioning")
+    parser.add_argument("--template-hash", type=str, default="38b2b68cf896e8582dff6f305a2041b1", help="Vast.ai template hash to use for provisioning")
 
     # Email arguments
     parser.add_argument("--email", type=str, help="Recipient email address for results")

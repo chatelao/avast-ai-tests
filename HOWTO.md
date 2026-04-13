@@ -74,9 +74,12 @@ Using a **Vast.ai Template** (configured via the Web Console) is significantly f
 - **Zero-Touch:** You can configure the `docker run` command and environment variables (like `HF_TOKEN`) directly in the template.
 - **Parallelism:** The engine starts while you are still SSHing in to clone the benchmarking repo.
 
-To use a template with our tools, find your template's **Hash ID** in the Vast.ai console and pass it to the orchestrator (if supported) or use it in `vast_manager.py`:
+To use a template with our tools, find your template's **Hash ID** in the Vast.ai console and pass it to the orchestrator (if supported) or use it in `vast_manager.py`.
+
+Our recommended template hash is `38b2b68cf896e8582dff6f305a2041b1`, which comes with **vLLM preinstalled and ready to go**.
+
 ```python
-mgr.rent_instance(offer_id, template_hash="your_template_hash")
+mgr.rent_instance(offer_id, template_hash="38b2b68cf896e8582dff6f305a2041b1")
 ```
 
 ## Phase 6: Full Automation (Benchmark, Email, and Shutdown)
