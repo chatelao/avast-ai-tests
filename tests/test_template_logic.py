@@ -51,7 +51,7 @@ class TestTemplateLogic(unittest.TestCase):
             ))
 
             # Verify rent_instance was called with template_hash
-            mock_vast.rent_instance.assert_called_with(123, template_hash="my_template_hash")
+            mock_vast.rent_instance.assert_called_with(123, template_hash="my_template_hash", env={})
 
     @patch("orchestrator.VastManager")
     def test_api_url_construction_with_mapped_port(self, MockVastManager):
@@ -89,7 +89,7 @@ class TestTemplateLogic(unittest.TestCase):
             MockLoadTester.assert_called_with("http://mapped.host:32768", "gemma")
 
     @patch("orchestrator.VastManager")
-    def test_api_url_construction_fallback(self, MockVastManager):
+    def test_api_url_construction_fails_without_mapping(self, MockVastManager):
         mock_vast = MockVastManager.return_value
         mock_vast.find_offers.return_value = [{"id": 123}]
         mock_vast.rent_instance.return_value = "inst_1"
@@ -101,16 +101,7 @@ class TestTemplateLogic(unittest.TestCase):
             "ports": {}
         }
 
-        async def mock_wait(*args, **kwargs):
-            return True
-        self.orchestrator.wait_for_api_ready = mock_wait
-
         with patch("orchestrator.LoadTester") as MockLoadTester:
-            mock_tester = MockLoadTester.return_value
-            async def mock_run_bench(*args, **kwargs):
-                return {"total_tps": 10.0}
-            mock_tester.run_benchmark = mock_run_bench
-
             asyncio.run(self.orchestrator.run_suite(
                 gpu_name="RTX_4090",
                 model_name="gemma",
@@ -118,8 +109,8 @@ class TestTemplateLogic(unittest.TestCase):
                 requests_per_level=1
             ))
 
-            # Check if LoadTester was initialized with the SSH URL fallback
-            MockLoadTester.assert_called_with("http://1.2.3.4:2222", "gemma")
+            # Check that LoadTester was NEVER called because we exited early
+            MockLoadTester.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

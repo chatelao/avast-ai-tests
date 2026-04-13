@@ -28,8 +28,9 @@ on:
         required: true
         default: '10'
       template_hash:
-        description: 'Vast.ai template hash (optional)'
-        required: false
+        description: 'Vast.ai template hash'
+        required: true
+        default: '7e24e4e5c2e551d012344a9bf4f141c2'
       prompt:
         description: 'Benchmark prompt'
         required: true

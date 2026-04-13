@@ -73,7 +73,14 @@ class Orchestrator:
 
             # Select the best offer (lowest price per hour)
             offer_id = offers[0]['id']
-            instance_id = self.vast.rent_instance(offer_id, template_hash=template_hash)
+
+            # Pass HF_TOKEN if available
+            env_vars = {}
+            hf_token = os.getenv("HF_TOKEN")
+            if hf_token:
+                env_vars["HF_TOKEN"] = hf_token
+
+            instance_id = self.vast.rent_instance(offer_id, template_hash=template_hash, env=env_vars)
             if not instance_id:
                 return
 
@@ -94,7 +101,9 @@ class Orchestrator:
                 if '8000/tcp' in ports:
                     api_url = f"http://{ports['8000/tcp'][0]['DirectAddress']}"
                 else:
-                    api_url = f"http://{instance['ssh_host']}:{instance['ssh_port']}"
+                    print("Error: Port 8000 is not mapped on the instance.")
+                    print("Automated benchmarking requires port 8000 to be exposed (typically via a Vast.ai template).")
+                    return
 
                 print(f"Instance ready at {api_url}")
 
