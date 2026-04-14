@@ -76,9 +76,17 @@ class LoadTester:
 
             # Simple concurrency control
             semaphore = asyncio.Semaphore(concurrency)
+            completed = 0
+            total = len(tasks)
+
             async def sem_request(task):
+                nonlocal completed
                 async with semaphore:
-                    return await task
+                    res = await task
+                    completed += 1
+                    if completed % 5 == 0 or completed == total:
+                        print(f"  Progress: {completed}/{total} requests finished")
+                    return res
 
             results = await asyncio.gather(*(sem_request(t) for t in tasks))
 

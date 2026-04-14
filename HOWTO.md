@@ -1,133 +1,67 @@
-# HOWTO: From Zero to Test Results (On-Instance)
+# HOWTO: Benchmarking LLMs on Vast.ai
 
-This guide provides a step-by-step checklist to benchmark LLMs directly on a Vast.ai instance. Running benchmarks on-instance eliminates network latency and provides the most accurate hardware metrics.
+This guide describes how to benchmark LLMs on Vast.ai using this automated framework. The recommended approach is to use the provided GitHub Action workflow, which handles the entire lifecycle from provisioning to cleanup.
 
-## Phase 1: Preparation
-- [ ] **Vast.ai Account:** Create an account at [vast.ai](https://vast.ai/).
-- [ ] **Add Credits:** Ensure your account has a balance to rent instances.
-- [ ] **HuggingFace Token:** If testing gated models (like Gemma), get a token from [huggingface.co](https://huggingface.co/settings/tokens).
+## Primary Workflow: GitHub Actions (Automated)
 
-## Phase 2: Renting an Instance
-- [ ] **Search for Hardware:** Go to the [Vast.ai Console](https://vast.ai/console/create/) and search for your desired GPU (e.g., "RTX 4090").
-- [ ] **Rent:** Select an offer and rent the instance.
-- [ ] **Get SSH Details:** Once the instance is ready, note the SSH IP and Port from the "Instances" tab.
+Running benchmarks via GitHub Actions is the most reliable and efficient method. The orchestrator runs on the GitHub runner and manages a remote GPU instance on Vast.ai.
 
-## Phase 3: Optimized On-Instance Setup & Benchmarking
-To minimize runtime on expensive hardware, we maximize startup efficiency by running the LLM engine and setup tasks in parallel.
+### 1. Prerequisites
+- **Vast.ai API Key:** Get your API key from the [Vast.ai Console](https://vast.ai/console/billing/).
+- **HuggingFace Token:** For gated models (like Gemma), get a token from [HuggingFace Settings](https://huggingface.co/settings/tokens).
+- **GitHub Secrets:** Add `VAST_AI_API_KEY` and `HF_TOKEN` to your repository's GitHub Actions secrets.
 
-- [ ] **SSH and Start LLM Engine Immediately:**
-  Run the engine in detached mode (`-d`) so it starts pulling the model while you finish setup.
-  ```bash
-  ssh -p <PORT> root@<IP>
-  # Recommendation: use the module entrypoint for better stability in some environments
-  # python -m vllm.entrypoints.openai.api_server --model google/gemma-2-9b-it ...
-  docker run -d --gpus all \
-             -v ~/.cache/huggingface:/root/.cache/huggingface \
-             -e HF_TOKEN=<your_token> \
-             -p 8000:8000 vllm/vllm-openai:v0.4.0 \
-             --model google/gemma-2-9b-it \
-             --max-model-len 512 \
-             --block-size 16 \
-             --dtype float \
-             --enforce-eager
-  ```
-- [ ] **Setup Benchmarking Tools (Parallel to Download):**
-  While the Docker image is pulling in the background, clone the repo and install requirements.
-  ```bash
-  git clone <repo-url>
-  cd avast-ai-tests
-  pip install -r requirements.txt
-  ```
-- [ ] **Run Orchestrator with Auto-Ready:**
-  The orchestrator will automatically wait for the API to be ready before starting the benchmark.
-  ```bash
-  python3 orchestrator.py --gpu "RTX 4090" --model "gemma-2-9b-it" --url http://localhost:8000 --run
-  ```
+### 2. Running the Benchmark
+- Go to the **Actions** tab in your GitHub repository.
+- Select the **Vast.ai LLM Benchmark** workflow.
+- Click **Run workflow**.
+- Configure the inputs:
+    - **GPU model:** e.g., `RTX_4090`, `A100`.
+    - **LLM model:** Choose from the predefined list.
+    - **Concurrency levels:** Space-separated list (e.g., `1 4 16`).
+    - **Template Hash:** Use the default optimized vLLM template.
+- Click **Run workflow**.
 
-## Phase 4: Analyze Results & Immediate Cleanup
-To avoid unnecessary charges, analyze your results and destroy the instance immediately.
-- [ ] **Check Output File:** Results are saved as `benchmark_<gpu>_<timestamp>.json`.
-- [ ] **Verify Metrics:**
-    - **TTFT:** Time to First Token (lower is better).
-    - **ITL:** Inter-Token Latency (lower is better).
-    - **TPS:** Tokens Per Second (higher is better).
+### 3. Viewing Results
+- Once the workflow completes, the results table will be displayed in the **GitHub Step Summary**.
+- Detailed JSON results are available as a workflow artifact named `benchmark-results`.
+- The instance is automatically destroyed at the end of the workflow, even if a failure occurs.
 
-## Local Verification (Micro Runtime Test)
-If you want to verify the entire stack (Orchestrator + Load Tester + vLLM) without renting a GPU, you can run the micro runtime test on your local CPU. This uses a tiny 125M parameter model.
+## Manual Workflow (CLI-based)
 
-- [ ] **Install vLLM-CPU:**
-  ```bash
-  pip install vllm-cpu --extra-index-url https://download.pytorch.org/whl/cpu
-  ```
-- [ ] **Run the Test:**
-  ```bash
-  python tests/micro_runtime_test.py
-  ```
-This script automates the server startup, benchmarking, and result verification.
+You can also run the orchestrator manually from your local machine.
 
-## Phase 5: Fast Cleanup
-- [ ] **Destroy Instance:** Immediately go back to the [Vast.ai Console](https://vast.ai/console/instances/) and destroy the instance. For expensive hardware, every minute counts.
-
-## Pro Tip: Using Templates for Even Faster Setup
-Using a **Vast.ai Template** (configured via the Web Console) is significantly faster than manual `docker run` because:
-- **Instant Pull:** The host starts pulling the vLLM image the moment the instance is provisioned.
-- **Zero-Touch:** You can configure the `docker run` command and environment variables (like `HF_TOKEN`) directly in the template.
-- **Parallelism:** The engine starts while you are still SSHing in to clone the benchmarking repo.
-
-To use a template with our tools, find your template's **Hash ID** in the Vast.ai console and pass it to the orchestrator (if supported) or use it in `vast_manager.py`.
-
-Our recommended template hash is `7e24e4e5c2e551d012344a9bf4f141c2`, which provides a highly optimized **vLLM Inference Engine**.
-
-### Environment-Based Configuration
-This template is configured entirely via environment variables, which our orchestrator handles automatically:
-- `VLLM_MODEL`: The Hugging Face model path.
-- `VLLM_ARGS`: Optimization flags like `--max-model-len 512`.
-- `HF_TOKEN`: Your Hugging Face token for gated models.
-- `OPEN_BUTTON_TOKEN`: Sets the API key for the vLLM server.
-
-```python
-mgr.rent_instance(offer_id, template_hash="7e24e4e5c2e551d012344a9bf4f141c2", env="-e VLLM_MODEL=google/gemma-2-9b-it ...")
+### 1. Installation
+```bash
+pip install -r requirements.txt
+export VAST_AI_API_KEY=your_key
+export HF_TOKEN=your_hf_token
 ```
 
-## Phase 6: Full Automation (Benchmark, Email, and Shutdown)
-For maximum efficiency, you can automate the entire workflow so that the instance runs the tests, emails you the results, and shuts itself down immediately.
+### 2. Execution
+The orchestrator will provision an instance using the optimized vLLM template, run the benchmarks, and then destroy the instance.
 
-### 1. Create a Vast.ai Template
-In the [Vast.ai Console](https://vast.ai/console/templates/), create a new template with:
-- **Image:** `vllm/vllm-openai:v0.4.0` (or your preferred engine).
-- **Docker Options:** `-v ~/.cache/huggingface:/root/.cache/huggingface -p 8000:8000 --gpus all`.
-- **On-start Script:**
-  ```bash
-  # Start vLLM in the background
-  python3 -m vllm.entrypoints.openai.api_server \
-          --model google/gemma-2-9b-it \
-          --max-model-len 512 \
-          --block-size 16 \
-          --dtype float \
-          --enforce-eager > vllm.log 2>&1 &
+```bash
+python3 orchestrator.py --gpu "RTX_4090" --model "google/gemma-2-9b-it" --run
+```
 
-  # Clone and setup benchmarking tools
-  git clone <repo-url> /root/avast-ai-tests
-  cd /root/avast-ai-tests
-  pip install -r requirements.txt
+The orchestrator also supports granular execution modes, which are used by the GitHub Actions workflow:
+- `--provision`: Just rent the instance and wait for the API to be ready.
+- `--benchmark`: Run the benchmark suite against an already provisioned instance.
+- `--teardown`: Destroy the provisioned instance.
 
-  # Run the orchestrator with email and auto-shutdown
-  # Ensure all necessary environment variables are set in the template
-  python3 orchestrator.py --url http://localhost:8000 \
-                          --model "gemma-2-9b-it" \
-                          --gpu "RTX 4090" \
-                          --run \
-                          --email "your-email@example.com" \
-                          --shutdown
-  ```
+## Local Verification (No GPU required)
 
-### 2. Required Environment Variables
-Add these to your template's "Environment Variables" section:
-- `HF_TOKEN`: Your Hugging Face token.
-- `VAST_API_KEY`: Your Vast.ai API key (required for auto-shutdown).
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`: For email notifications.
+To verify the scripting logic without renting a GPU, use the micro runtime test.
 
-### 3. Benefits of this Workflow
-- **No Manual Intervention:** Just click "Rent" and wait for the email.
-- **Zero Waste:** The instance is destroyed the second the benchmark is finished.
-- **Reproducibility:** The template ensures every test runs in an identical environment.
+```bash
+pip install vllm-cpu --extra-index-url https://download.pytorch.org/whl/cpu
+python tests/micro_runtime_test.py
+```
+
+## Architecture Details
+
+This framework relies on optimized Vast.ai templates. The default template (`38b2b68cf896e8582dff6f305a2041b1`) is pre-configured with:
+- **vLLM Engine:** For high-throughput inference.
+- **Auto-Config:** Uses environment variables (`VLLM_MODEL`, `HF_TOKEN`, `OPEN_BUTTON_TOKEN`) for zero-touch setup.
+- **Port Mapping:** Exposes vLLM on port 18000 for the orchestrator to connect.
