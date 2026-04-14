@@ -65,8 +65,8 @@ This framework relies on optimized Vast.ai templates. The default template (`38b
 - **vLLM Engine:** For high-throughput inference.
 - **Auto-Config:** Uses environment variables (`VLLM_MODEL`, `HF_TOKEN`, `OPEN_BUTTON_TOKEN`) for zero-touch setup.
 - **Port Mapping:** Exposes services on standard ports:
-    - Instance Portal: 1111 (internal 11111)
-    - Model UI: 7860 (internal 17860)
-    - vLLM API: 8000 (internal 18000)
-    - Ray Dashboard: 8265 (internal 28265)
-    - Jupyter: 8080 (internal 18080)
+    - Instance Portal: 1111
+    - Model UI: 7860
+    - vLLM API: 8000
+    - Ray Dashboard: 8265
+    - Jupyter: 8080
