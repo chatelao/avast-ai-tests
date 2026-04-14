@@ -45,6 +45,11 @@ The orchestrator will provision an instance using the optimized vLLM template, r
 python3 orchestrator.py --gpu "RTX_4090" --model "google/gemma-2-9b-it" --run
 ```
 
+The orchestrator also supports granular execution modes, which are used by the GitHub Actions workflow:
+- `--provision`: Just rent the instance and wait for the API to be ready.
+- `--benchmark`: Run the benchmark suite against an already provisioned instance.
+- `--teardown`: Destroy the provisioned instance.
+
 ## Local Verification (No GPU required)
 
 To verify the scripting logic without renting a GPU, use the micro runtime test.
@@ -56,7 +61,7 @@ python tests/micro_runtime_test.py
 
 ## Architecture Details
 
-This framework relies on optimized Vast.ai templates. The default template (`7e24e4e5c2e551d012344a9bf4f141c2`) is pre-configured with:
+This framework relies on optimized Vast.ai templates. The default template (`38b2b68cf896e8582dff6f305a2041b1`) is pre-configured with:
 - **vLLM Engine:** For high-throughput inference.
 - **Auto-Config:** Uses environment variables (`VLLM_MODEL`, `HF_TOKEN`, `OPEN_BUTTON_TOKEN`) for zero-touch setup.
-- **Port Mapping:** Exposes vLLM on port 8000 for the orchestrator to connect.
+- **Port Mapping:** Exposes vLLM on port 18000 for the orchestrator to connect.

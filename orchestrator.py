@@ -70,13 +70,16 @@ class Orchestrator:
         start_time = time.time()
         async with aiohttp.ClientSession() as session:
             while time.time() - start_time < timeout:
+                elapsed = int(time.time() - start_time)
                 try:
                     async with session.get(f"{url}/v1/models") as response:
                         if response.status == 200:
-                            print("API is ready!")
+                            print(f"API is ready after {elapsed}s!")
                             return True
                 except Exception:
                     pass
+                if elapsed % 30 == 0 and elapsed > 0:
+                    print(f"  ...still waiting ({elapsed}s elapsed)")
                 await asyncio.sleep(10)
         print("Timeout waiting for API to be ready.")
         return False
@@ -102,17 +105,49 @@ class Orchestrator:
         except Exception as e:
             print(f"Failed to send email: {e}")
 
-    async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10, wait_timeout=1200, prompt="Explain quantum physics in one sentence.", email_config=None, template_hash="38b2b68cf896e8582dff6f305a2041b1"):
-        print(f"Starting benchmark suite for {model_name} on {gpu_name}")
+    async def run_suite(self, gpu_name, model_name, url=None, concurrency_levels=[1, 4, 16], requests_per_level=10, wait_timeout=1200, prompt="Explain quantum physics in one sentence.", email_config=None, template_hash="38b2b68cf896e8582dff6f305a2041b1", mode="all"):
+        print(f"Starting benchmark suite for {model_name} on {gpu_name} (Mode: {mode})")
 
         instance_id = None
         vllm_api_key = "vllm-benchmark-token"
 
+        # Load instance ID if it exists (for split-step execution)
+        if os.path.exists(".vast_instance_id"):
+            with open(".vast_instance_id", "r") as f:
+                content = f.read().strip()
+                try:
+                    instance_id = int(content)
+                    print(f"Loaded existing instance ID: {instance_id}")
+                except ValueError:
+                    # In tests we might use string IDs
+                    instance_id = content
+                    print(f"Loaded existing instance ID (string): {instance_id}")
+
+        if mode == "teardown":
+            if not instance_id:
+                print("No instance ID found to teardown.")
+                return
+            self.log_group_start("Teardown")
+            try:
+                self.vast.destroy_instance(instance_id)
+                if os.path.exists(".vast_instance_id"):
+                    os.remove(".vast_instance_id")
+                if os.path.exists(".vast_api_url"):
+                    os.remove(".vast_api_url")
+            finally:
+                self.log_group_end()
+            return
+
         if url:
             api_url = url
             print(f"Using existing endpoint: {api_url}")
-            # Ensure instance_id is None to avoid teardown of existing endpoint if URL is used
-            instance_id = None
+        elif mode == "benchmark":
+            if os.path.exists(".vast_api_url"):
+                with open(".vast_api_url", "r") as f:
+                    api_url = f.read().strip()
+                print(f"Loaded API URL from file: {api_url}")
+            else:
+                raise ValueError("API URL (--url) or .vast_api_url file is required for benchmark mode")
         else:
             if not template_hash:
                 raise ValueError("template_hash is required when provisioning a new instance")
@@ -138,35 +173,38 @@ class Orchestrator:
                 # Persist instance ID for external cleanup (e.g., GitHub Actions cancellation)
                 with open(".vast_instance_id", "w") as f:
                     f.write(str(instance_id))
+
+                # 2. Wait for instance to be ready
+                instance = self.vast.wait_for_ssh(instance_id)
+                if not instance:
+                    raise RuntimeError(f"Instance {instance_id} failed to initialize or become reachable")
+
+                # Determine API URL, prioritizing mapped port 18000
+                ports = instance.get('ports', {})
+                if '18000/tcp' in ports:
+                    api_url = f"http://{ports['18000/tcp'][0]['DirectAddress']}"
+                else:
+                    raise RuntimeError(f"Instance {instance_id} does not have port 18000 mapped. vLLM template requires port 18000.")
+
+                with open(".vast_api_url", "w") as f:
+                    f.write(api_url)
+
+                print(f"Instance ready at {api_url}")
+                print(f"Using template {template_hash}. Waiting for preinstalled vLLM to start...")
+                print(f"URL: {api_url}")
+
+                # 2.5 Wait for API to be ready
+                if not await self.wait_for_api_ready(api_url, timeout=wait_timeout):
+                    raise RuntimeError(f"LLM API at {api_url} never became ready within {wait_timeout} seconds")
             finally:
                 self.log_group_end()
 
+            if mode == "provision":
+                print("Provisioning complete. API is ready.")
+                return
+
         try:
-            if not url:
-                self.log_group_start("Waiting for Instance & API")
-                try:
-                    # 2. Wait for instance to be ready
-                    instance = self.vast.wait_for_ssh(instance_id)
-                    if not instance:
-                        raise RuntimeError(f"Instance {instance_id} failed to initialize or become reachable")
-
-                    # Determine API URL, prioritizing mapped port 18000
-                    ports = instance.get('ports', {})
-                    if '18000/tcp' in ports:
-                        api_url = f"http://{ports['18000/tcp'][0]['DirectAddress']}"
-                    else:
-                        raise RuntimeError(f"Instance {instance_id} does not have port 18000 mapped. vLLM template requires port 18000.")
-
-                    print(f"Instance ready at {api_url}")
-                    print(f"Using template {template_hash}. Waiting for preinstalled vLLM to start...")
-                    print(f"URL: {api_url}")
-
-                    # 2.5 Wait for API to be ready
-                    if not await self.wait_for_api_ready(api_url, timeout=wait_timeout):
-                        raise RuntimeError(f"LLM API at {api_url} never became ready within {wait_timeout} seconds")
-                finally:
-                    self.log_group_end()
-            else:
+            if url or mode == "benchmark":
                 self.log_group_start("Waiting for API")
                 try:
                     # 2.5 Wait for API to be ready
@@ -216,14 +254,17 @@ class Orchestrator:
 
         finally:
             # 5. Teardown
-            self.log_group_start("Teardown")
-            try:
-                if instance_id:
-                    self.vast.destroy_instance(instance_id)
-                    if os.path.exists(".vast_instance_id"):
-                        os.remove(".vast_instance_id")
-            finally:
-                self.log_group_end()
+            if mode == "all":
+                self.log_group_start("Teardown")
+                try:
+                    if instance_id:
+                        self.vast.destroy_instance(instance_id)
+                        if os.path.exists(".vast_instance_id"):
+                            os.remove(".vast_instance_id")
+                        if os.path.exists(".vast_api_url"):
+                            os.remove(".vast_api_url")
+                finally:
+                    self.log_group_end()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Gemma Performance Lab Orchestrator")
@@ -236,6 +277,9 @@ if __name__ == "__main__":
     parser.add_argument("--wait-timeout", type=int, default=1200, help="Timeout in seconds to wait for API to be ready")
     parser.add_argument("--prompt", type=str, default="Explain quantum physics in one sentence.", help="Prompt to use for benchmarking")
     parser.add_argument("--template-hash", type=str, default="38b2b68cf896e8582dff6f305a2041b1", help="Vast.ai template hash to use for provisioning")
+    parser.add_argument("--provision", action="store_true", help="Only provision the instance and wait for API")
+    parser.add_argument("--benchmark", action="store_true", help="Only run benchmarks (requires --url or .vast_api_url)")
+    parser.add_argument("--teardown", action="store_true", help="Only destroy the instance (requires .vast_instance_id)")
 
     # Email arguments
     parser.add_argument("--email", type=str, help="Recipient email address for results")
@@ -260,6 +304,11 @@ if __name__ == "__main__":
                 }
             }
 
+        mode = "all"
+        if args.provision: mode = "provision"
+        elif args.benchmark: mode = "benchmark"
+        elif args.teardown: mode = "teardown"
+
         try:
             asyncio.run(orch.run_suite(
                 args.gpu,
@@ -270,7 +319,8 @@ if __name__ == "__main__":
                 wait_timeout=args.wait_timeout,
                 prompt=args.prompt,
                 email_config=email_config,
-                template_hash=args.template_hash
+                template_hash=args.template_hash,
+                mode=mode
             ))
         except Exception as e:
             orch.log_error(f"Error during benchmark run: {e}")
