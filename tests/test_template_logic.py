@@ -28,7 +28,6 @@ class TestTemplateLogic(unittest.TestCase):
         mock_vast.wait_for_ssh.return_value = {
             "ssh_host": "1.2.3.4",
             "ssh_port": 2222,
-            "ports": {"18000/tcp": [{"DirectAddress": "mapped.host:32768"}]}
         }
 
         async def mock_wait(*args, **kwargs):
@@ -60,8 +59,8 @@ class TestTemplateLogic(unittest.TestCase):
             ))
 
             # Verify rent_instance was called with template_hash
-            vllm_args = "--dtype auto --enforce-eager --max-model-len 512 --block-size 16"
-            expected_env = f"-e VLLM_MODEL=gemma -e VLLM_ARGS='{vllm_args}' -e HF_TOKEN= -e OPEN_BUTTON_TOKEN=vllm-benchmark-token -p 1111:11111 -p 7860:17860 -p 8000:18000 -p 8265:28265 -p 8080:18080"
+            vllm_args = "--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000"
+            expected_env = f"-e VLLM_MODEL=gemma -e VLLM_ARGS='{vllm_args}' -e HF_TOKEN= -e OPEN_BUTTON_TOKEN=vllm-benchmark-token -p 1111:1111 -p 7860:7860 -p 8000:8000 -p 8265:8265 -p 8080:8080"
             mock_vast.rent_instance.assert_called_with(123, template_hash=template_hash, env=expected_env)
 
     @patch("orchestrator.VastManager")
@@ -73,7 +72,6 @@ class TestTemplateLogic(unittest.TestCase):
         mock_vast.wait_for_ssh.return_value = {
             "ssh_host": "1.2.3.4",
             "ssh_port": 2222,
-            "ports": {"18000/tcp": [{"DirectAddress": "mapped.host:32768"}]}
         }
 
         async def mock_wait(*args, **kwargs):
@@ -102,170 +100,12 @@ class TestTemplateLogic(unittest.TestCase):
                 ))
 
             # Verify rent_instance was called with the correct env string
-            vllm_args = "--dtype auto --enforce-eager --max-model-len 512 --block-size 16"
-            expected_env = f"-e VLLM_MODEL=gemma-test -e VLLM_ARGS='{vllm_args}' -e HF_TOKEN=test_hf_token -e OPEN_BUTTON_TOKEN=vllm-benchmark-token -p 1111:11111 -p 7860:17860 -p 8000:18000 -p 8265:28265 -p 8080:18080"
+            vllm_args = "--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000"
+            expected_env = f"-e VLLM_MODEL=gemma-test -e VLLM_ARGS='{vllm_args}' -e HF_TOKEN=test_hf_token -e OPEN_BUTTON_TOKEN=vllm-benchmark-token -p 1111:1111 -p 7860:7860 -p 8000:8000 -p 8265:8265 -p 8080:8080"
             mock_vast.rent_instance.assert_called_with(123, template_hash="38b2b68cf896e8582dff6f305a2041b1", env=expected_env)
 
-            # Verify LoadTester was initialized with the API key
-            MockLoadTester.assert_called_with("http://mapped.host:32768", "gemma-test", api_key="vllm-benchmark-token")
-
-    @patch("orchestrator.VastManager")
-    @patch("orchestrator.time.sleep")
-    def test_api_url_construction_with_mapped_port(self, mock_sleep, MockVastManager):
-        mock_vast = MockVastManager.return_value
-        mock_vast.find_offers.return_value = [{"id": 123}]
-        mock_vast.rent_instance.return_value = "inst_1"
-
-        # Case 1: Port 18000 is mapped
-        mock_vast.wait_for_ssh.return_value = {
-            "ssh_host": "1.2.3.4",
-            "ssh_port": 2222,
-            "ports": {
-                "18000/tcp": [{"DirectAddress": "mapped.host:32768"}]
-            }
-        }
-
-        async def mock_wait(*args, **kwargs):
-            return True
-        self.orchestrator.wait_for_api_ready = mock_wait
-
-        with patch("orchestrator.LoadTester") as MockLoadTester:
-            mock_tester = MockLoadTester.return_value
-            async def mock_run_bench(*args, **kwargs):
-                return {"total_tps": 10.0}
-            mock_tester.run_benchmark = mock_run_bench
-
-            asyncio.run(self.orchestrator.run_suite(
-                gpu_name="RTX_4090",
-                model_name="gemma",
-                concurrency_levels=[1],
-                requests_per_level=1
-            ))
-
-            # Check if LoadTester was initialized with the mapped URL
-            MockLoadTester.assert_called_with("http://mapped.host:32768", "gemma", api_key="vllm-benchmark-token")
-
-    @patch("orchestrator.VastManager")
-    @patch("orchestrator.time.sleep")
-    @patch("orchestrator.time.time")
-    def test_api_url_construction_failure_if_no_port_18000(self, mock_time, mock_sleep, MockVastManager):
-        # Mock time to simulate timeout quickly
-        # Needs multiple calls: one for start_time, then one for each loop iteration check
-        mock_time.side_effect = [100.0, 200.0]
-
-        mock_vast = MockVastManager.return_value
-        mock_vast.find_offers.return_value = [{"id": 123}]
-        mock_vast.rent_instance.return_value = "inst_1"
-
-        # Case 2: Port 18000 is NOT mapped
-        mock_vast.wait_for_ssh.return_value = {
-            "ssh_host": "1.2.3.4",
-            "ssh_port": 2222,
-            "ports": {}
-        }
-        mock_vast.sdk.show_instances.return_value = [{"id": "inst_1", "ports": {}}]
-
-        with self.assertRaises(RuntimeError) as cm:
-            asyncio.run(self.orchestrator.run_suite(
-                gpu_name="RTX_4090",
-                model_name="gemma",
-                concurrency_levels=[1],
-                requests_per_level=1
-            ))
-
-        self.assertIn("does not have port 18000 mapped", str(cm.exception))
-
-    @patch("orchestrator.VastManager")
-    def test_api_url_construction_with_host_ip_port(self, MockVastManager):
-        mock_vast = MockVastManager.return_value
-        mock_vast.find_offers.return_value = [{"id": 123}]
-        mock_vast.rent_instance.return_value = "inst_1"
-
-        # HostIp and HostPort are present instead of DirectAddress
-        mock_vast.wait_for_ssh.return_value = {
-            "id": "inst_1",
-            "ssh_host": "1.2.3.4",
-            "ssh_port": 2222,
-            "ports": {
-                "18000/tcp": [{"HostIp": "5.6.7.8", "HostPort": "32769"}]
-            }
-        }
-        mock_vast.sdk.show_instances.return_value = [
-            {
-                "id": "inst_1",
-                "ports": {"18000/tcp": [{"HostIp": "5.6.7.8", "HostPort": "32769"}]}
-            }
-        ]
-
-        async def mock_wait(*args, **kwargs):
-            return True
-        self.orchestrator.wait_for_api_ready = mock_wait
-
-        with patch("orchestrator.LoadTester") as MockLoadTester:
-            mock_tester = MockLoadTester.return_value
-            async def mock_run_bench(*args, **kwargs):
-                return {"total_tps": 10.0}
-            mock_tester.run_benchmark = mock_run_bench
-
-            asyncio.run(self.orchestrator.run_suite(
-                gpu_name="RTX_4090",
-                model_name="gemma",
-                concurrency_levels=[1],
-                requests_per_level=1
-            ))
-
-            # Check if LoadTester was initialized with the HostIp:HostPort URL
-            MockLoadTester.assert_called_with("http://5.6.7.8:32769", "gemma", api_key="vllm-benchmark-token")
-
-    @patch("orchestrator.VastManager")
-    @patch("orchestrator.time.sleep") # Speed up tests
-    def test_api_url_detection_with_retries(self, mock_sleep, MockVastManager):
-        mock_vast = MockVastManager.return_value
-        mock_vast.find_offers.return_value = [{"id": 123}]
-        mock_vast.rent_instance.return_value = "inst_1"
-
-        # Initially no ports
-        instance_no_ports = {
-            "id": "inst_1",
-            "ssh_host": "1.2.3.4",
-            "ssh_port": 2222,
-            "ports": {}
-        }
-        # Later with ports
-        instance_with_ports = {
-            "id": "inst_1",
-            "ports": {"18000/tcp": [{"DirectAddress": "mapped.host:32768"}]}
-        }
-
-        mock_vast.wait_for_ssh.return_value = instance_no_ports
-        # Mock show_instances to return no ports twice, then with ports
-        mock_vast.sdk.show_instances.side_effect = [
-            [instance_no_ports],
-            [instance_no_ports],
-            [instance_with_ports]
-        ]
-
-        async def mock_wait(*args, **kwargs):
-            return True
-        self.orchestrator.wait_for_api_ready = mock_wait
-
-        with patch("orchestrator.LoadTester") as MockLoadTester:
-            mock_tester = MockLoadTester.return_value
-            async def mock_run_bench(*args, **kwargs):
-                return {"total_tps": 10.0}
-            mock_tester.run_benchmark = mock_run_bench
-
-            asyncio.run(self.orchestrator.run_suite(
-                gpu_name="RTX_4090",
-                model_name="gemma",
-                concurrency_levels=[1],
-                requests_per_level=1
-            ))
-
-            # Should have called show_instances 3 times
-            self.assertEqual(mock_vast.sdk.show_instances.call_count, 3)
-            # Should have initialized with the eventually discovered URL
-            MockLoadTester.assert_called_with("http://mapped.host:32768", "gemma", api_key="vllm-benchmark-token")
+            # Verify LoadTester was initialized with the API key and port 8000
+            MockLoadTester.assert_called_with("http://1.2.3.4:8000", "gemma-test", api_key="vllm-benchmark-token")
 
 if __name__ == "__main__":
     unittest.main()
