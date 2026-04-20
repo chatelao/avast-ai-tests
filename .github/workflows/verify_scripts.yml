@@ -45,7 +45,6 @@ jobs:
         cat benchmark_mock-gpu_*.json | jq '.'
 
   verify-with-vllm:
-    if: false
     runs-on: ubuntu-latest
     env:
       VLLM_TARGET_DEVICE: cpu
