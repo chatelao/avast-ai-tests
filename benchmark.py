@@ -72,16 +72,18 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
     parser.add_argument("--gpu", default="RTX_4090")
+    parser.add_argument("--url", help="Override API URL")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16])
     parser.add_argument("--requests-per-level", type=int, default=10)
     args = parser.parse_args()
 
-    if not os.path.exists(".vast_api_url"):
-        print("::error::.vast_api_url not found")
-        sys.exit(1)
-
-    with open(".vast_api_url", "r") as f:
-        api_url = f.read().strip()
+    api_url = args.url
+    if not api_url:
+        if not os.path.exists(".vast_api_url"):
+            print("::error::.vast_api_url not found and --url not provided")
+            sys.exit(1)
+        with open(".vast_api_url", "r") as f:
+            api_url = f.read().strip()
 
     tester = LoadTester(api_url, args.model, "vllm-benchmark-token")
     all_results = []
@@ -103,6 +105,10 @@ async def main():
                 for r in all_results:
                     f.write(f"| {r['concurrency']} | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
 
+        output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
+        with open(output_file, "w") as f:
+            json.dump(all_results, f, indent=2)
+        # Also symlink or copy to results.json for the main workflow artifact
         with open("results.json", "w") as f:
             json.dump(all_results, f, indent=2)
 
