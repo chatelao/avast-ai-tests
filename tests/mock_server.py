@@ -37,6 +37,41 @@ async def chat_completions(request):
     await response.write(b"data: [DONE]\n\n")
     return response
 
+async def completions(request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    stream = data.get("stream", False)
+
+    if not stream:
+        return web.json_response({
+            "choices": [{"text": "This is a mock completion response."}]
+        })
+
+    response = web.StreamResponse(
+        status=200,
+        reason='OK',
+        headers={
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+        },
+    )
+    await response.prepare(request)
+
+    tokens = ["This", " is", " a", " mock", " streaming", " completion", " response."]
+    for token in tokens:
+        chunk = {
+            "choices": [{"text": token}]
+        }
+        await response.write(f"data: {json.dumps(chunk)}\n\n".encode('utf-8'))
+        await asyncio.sleep(0.05)
+
+    await response.write(b"data: [DONE]\n\n")
+    return response
+
 async def models(request):
     return web.json_response({
         "object": "list",
@@ -45,6 +80,7 @@ async def models(request):
 
 app = web.Application()
 app.router.add_post('/v1/chat/completions', chat_completions)
+app.router.add_post('/v1/completions', completions)
 app.router.add_get('/v1/models', models)
 
 if __name__ == '__main__':

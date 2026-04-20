@@ -19,14 +19,14 @@ class LoadTester:
         self.api_key = api_key
 
     async def send_request(self, session, prompt):
-        url = f"{self.base_url}/v1/chat/completions"
+        url = f"{self.base_url}/v1/completions"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
         payload = {
             "model": self.model_name,
-            "messages": [{"role": "user", "content": prompt}],
+            "prompt": prompt,
             "max_tokens": 100,
             "stream": True
         }
