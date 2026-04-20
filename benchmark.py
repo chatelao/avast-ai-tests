@@ -39,7 +39,8 @@ class LoadTester:
         try:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
-                    log(f"Error: HTTP {response.status} from {url}")
+                    text = await response.text()
+                    log(f"Error: HTTP {response.status} from {url}: {text[:200]}")
                     return None
 
                 async for line in response.content:

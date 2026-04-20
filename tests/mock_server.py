@@ -37,8 +37,15 @@ async def chat_completions(request):
     await response.write(b"data: [DONE]\n\n")
     return response
 
+async def models(request):
+    return web.json_response({
+        "object": "list",
+        "data": [{"id": "tiny-model", "object": "model", "created": 1677610602, "owned_by": "organization-owner"}]
+    })
+
 app = web.Application()
 app.router.add_post('/v1/chat/completions', chat_completions)
+app.router.add_get('/v1/models', models)
 
 if __name__ == '__main__':
     print("Starting mock server on port 8000...")
