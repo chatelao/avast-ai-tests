@@ -109,12 +109,15 @@ async def main():
                 f.write("| C | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|\n")
                 for r in all_results:
                     f.write(f"| {r['concurrency']} | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
+            log(f"Summary written to {summary_file}")
 
         output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
         with open(output_file, "w") as f:
             json.dump(all_results, f, indent=2)
+        log(f"Results written to {output_file}")
         with open("results.json", "w") as f:
             json.dump(all_results, f, indent=2)
+        log(f"Results written to results.json")
 
 if __name__ == "__main__":
     asyncio.run(main())
