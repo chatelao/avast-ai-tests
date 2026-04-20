@@ -83,6 +83,8 @@ async def create_instance(request):
         "actual_status": "loading",
         "public_ipaddr": "127.0.0.1",
         "status_msg": "Creating instance",
+        "start_date": time.time(),
+        "extra_env": [],
         "ports": {
             "8000/tcp": [{"HostPort": "8000"}]
         }
