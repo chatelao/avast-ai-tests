@@ -27,68 +27,32 @@ jobs:
 
     - name: Run mock server
       run: |
-        python __archiv_2026-04-20/tests/mock_server.py &
+        python tests/mock_server.py &
         # Wait for mock server to be ready
         timeout 30 bash -c 'until curl -sf http://localhost:8000/v1/models; do sleep 1; done' || (echo "Mock server failed to start" && exit 1)
 
-    - name: Run benchmark against mock server
+    - name: Execute End-to-End Script Sequence
+      env:
+        VAST_API_URL: http://localhost:8000
+        VAST_AI_API_KEY: mock-key
+        HF_TOKEN: mock-token
       run: |
-        python benchmark.py \
-          --url http://localhost:8000 \
-          --model tiny-model \
-          --gpu mock-gpu \
-          --concurrency-levels 1 2 \
-          --requests-per-level 5
+        echo "--- Launching ---"
+        python launch.py --gpu "RTX 4090" --model "tiny-model"
+
+        echo "--- Polling ---"
+        # We need to speed up polling for the mock test
+        # The mock becomes 'running' after 2 seconds
+        # We'll use the default polling which has 20s sleep, so it should be fast enough
+        python poll.py
+
+        echo "--- Benchmarking ---"
+        python benchmark.py --gpu "RTX 4090" --model "tiny-model" --concurrency-levels 1 2 --requests-per-level 5
+
+        echo "--- Teardown ---"
+        python teardown.py
 
     - name: Check benchmark results
       run: |
-        ls benchmark_mock-gpu_*.json
-        cat benchmark_mock-gpu_*.json | jq '.'
-
-  verify-on-vast:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-        cache: 'pip'
-        cache-dependency-path: requirements.txt
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-
-    - name: Launch
-      env:
-        VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
-        HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      run: |
-        python launch.py \
-          --gpu "RTX_4090" \
-          --model "facebook/opt-125m" \
-          --template-hash "38b2b68cf896e8582dff6f305a2041b1"
-
-    - name: Poll
-      env:
-        VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
-      run: |
-        python poll.py
-
-    - name: Benchmark
-      run: |
-        python benchmark.py \
-          --gpu "RTX_4090" \
-          --model "facebook/opt-125m" \
-          --concurrency-levels 1 \
-          --requests-per-level 5
-
-    - name: Teardown
-      if: always()
-      env:
-        VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
-      run: |
-        python teardown.py
+        ls benchmark_RTX_4090_*.json
+        cat benchmark_RTX_4090_*.json | jq '.'

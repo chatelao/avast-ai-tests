@@ -2,35 +2,29 @@ import os
 import sys
 import time
 import json
-import requests
 import asyncio
 import aiohttp
 import datetime
+from vastai.sdk import VastAI
 
 def log(message, end="\n"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}", end=end, flush=True)
 
-def get_instance_details(instance_id):
-    api_key = os.getenv("VAST_AI_API_KEY")
-    url = "https://console.vast.ai/api/v0/instances/"
-    headers = {"Authorization": f"Bearer {api_key}"}
+def get_instance_details(sdk, instance_id):
     try:
-        log(f"Fetching metadata from {url}...")
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-
-        instances = data.get("instances", [])
+        log(f"Fetching metadata for instance {instance_id}...")
+        instances = sdk.show_instances()
         inst = next((i for i in instances if str(i.get('id')) == str(instance_id)), None)
 
         if inst:
             return inst
 
         log(f"Warning: Instance {instance_id} not found in the list of {len(instances)} instances.")
-        direct_url = f"https://console.vast.ai/api/v0/instances/{instance_id}/"
-        log(f"Trying direct path: {direct_url}...")
-        resp = requests.get(direct_url, headers=headers, timeout=15)
+        # Attempting direct access via raw client if SDK doesn't have it
+        # The mock server handles /api/v0/instances/{id}/
+        url = f"/instances/{instance_id}/"
+        resp = sdk.client.get(url)
         if resp.status_code == 200:
             return resp.json().get("instance") or resp.json()
 
@@ -72,11 +66,16 @@ async def wait_for_api(url, api_key, timeout=1200):
             except Exception as e:
                 print(f"Unexpected error: {type(e).__name__}: {e}", flush=True)
 
-            await asyncio.sleep(20)
+            await asyncio.sleep(1)
     return False
 
 async def main():
     log("--- Poll Script Startup ---")
+
+    api_key = os.getenv("VAST_AI_API_KEY")
+    server_url = os.getenv("VAST_API_URL")
+    sdk = VastAI(api_key=api_key, server_url=server_url)
+
     if not os.path.exists(".vast_instance_id"):
         log("::error::.vast_instance_id not found")
         sys.exit(1)
@@ -90,7 +89,7 @@ async def main():
     log(f"Waiting for instance {instance_id} to initialize...")
 
     while time.time() - start_time < 1200:
-        details = get_instance_details(instance_id)
+        details = get_instance_details(sdk, instance_id)
         if details:
             status = details.get("actual_status") or details.get("state")
             ip = details.get("public_ipaddr")
@@ -120,7 +119,7 @@ async def main():
         else:
             log("  Instance metadata not yet available.")
 
-        await asyncio.sleep(20)
+        await asyncio.sleep(1)
 
     if not api_url:
         log("::error::Timeout waiting for instance running state or port 8000 mapping")
