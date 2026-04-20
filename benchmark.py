@@ -6,6 +6,11 @@ import statistics
 import os
 import argparse
 import sys
+import datetime
+
+def log(message, end="\n"):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}", end=end, flush=True)
 
 class LoadTester:
     def __init__(self, base_url, model_name, api_key=None):
@@ -80,7 +85,7 @@ async def main():
     api_url = args.url
     if not api_url:
         if not os.path.exists(".vast_api_url"):
-            print("::error::.vast_api_url not found and --url not provided")
+            log("::error::.vast_api_url not found and --url not provided")
             sys.exit(1)
         with open(".vast_api_url", "r") as f:
             api_url = f.read().strip()
@@ -88,13 +93,13 @@ async def main():
     tester = LoadTester(api_url, args.model, "vllm-benchmark-token")
     all_results = []
 
-    print(f"Starting benchmark for {args.model}...")
+    log(f"Starting benchmark for {args.model}...")
     for c in args.concurrency_levels:
-        print(f"  Concurrency {c}...")
+        log(f"  Concurrency {c}...")
         res = await tester.run(c, args.requests_per_level, "Explain quantum physics in one sentence.")
         if res:
             all_results.append(res)
-            print(f"    TPS: {res['total_tps']:.2f}")
+            log(f"    TPS: {res['total_tps']:.2f}")
 
     if all_results:
         summary_file = os.getenv("GITHUB_STEP_SUMMARY")
@@ -108,7 +113,6 @@ async def main():
         output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
         with open(output_file, "w") as f:
             json.dump(all_results, f, indent=2)
-        # Also symlink or copy to results.json for the main workflow artifact
         with open("results.json", "w") as f:
             json.dump(all_results, f, indent=2)
 
