@@ -15,9 +15,8 @@ Compare LLM model performances using vast.ai as remote GPU / vLLM provider:
 
 # HOWTO
 - Use the vast.ai template "38b2b68cf896e8582dff6f305a2041b1" to setup a vLLM instance.
-- Cache all installations as good as possible.
+- General rule: Add a date/timestamp to every line logged.
 
 # Secrets 
 - Use "VAST_AI_API_KEY" to access "vast.ai"
 - Use "HF_TOKEN" to access Hugging Face
-

@@ -1,65 +1,120 @@
 import asyncio
+import aiohttp
+import time
+import json
+import statistics
+import os
 import argparse
 import sys
-import os
-from bench.speed_test import run_speed_test_suite
-from infra.logging_utils import log_group_start, log_group_end, log_notice, log_error, log_group_cb
+import datetime
+
+def log(message, end="\n"):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[{timestamp}] {message}", end=end, flush=True)
+
+class LoadTester:
+    def __init__(self, base_url, model_name, api_key=None):
+        self.base_url = base_url.rstrip('/')
+        self.model_name = model_name
+        self.api_key = api_key
+
+    async def send_request(self, session, prompt):
+        url = f"{self.base_url}/v1/chat/completions"
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        payload = {
+            "model": self.model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": 100,
+            "stream": True
+        }
+
+        start_time = time.perf_counter()
+        ttft = None
+        tokens = 0
+        last_token_time = start_time
+
+        try:
+            async with session.post(url, json=payload, headers=headers) as response:
+                if response.status != 200:
+                    return None
+
+                async for line in response.content:
+                    line = line.decode('utf-8').strip()
+                    if line.startswith("data: "):
+                        if line == "data: [DONE]": break
+                        tokens += 1
+                        now = time.perf_counter()
+                        if ttft is None: ttft = now - start_time
+                        last_token_time = now
+
+            duration = time.perf_counter() - start_time
+            return {"ttft": ttft, "tokens": tokens, "duration": duration}
+        except Exception:
+            return None
+
+    async def run(self, concurrency, num_requests, prompt):
+        semaphore = asyncio.Semaphore(concurrency)
+        async with aiohttp.ClientSession() as session:
+            async def worker():
+                async with semaphore:
+                    return await self.send_request(session, prompt)
+
+            results = await asyncio.gather(*(worker() for _ in range(num_requests)))
+            valid = [r for r in results if r]
+            if not valid: return None
+
+            return {
+                "concurrency": concurrency,
+                "avg_ttft": statistics.mean([r['ttft'] for r in valid]),
+                "avg_tps": statistics.mean([r['tokens']/r['duration'] for r in valid]),
+                "total_tps": sum([r['tokens'] for r in valid]) / max([r['duration'] for r in valid])
+            }
 
 async def main():
-    parser = argparse.ArgumentParser(description="Run LLM Benchmark Suite")
-    parser.add_argument("--gpu", type=str, default="RTX_4090", help="GPU model being tested")
-    parser.add_argument("--model", type=str, required=True, help="Model name being tested")
-    parser.add_argument("--url", type=str, help="API endpoint URL (defaults to .vast_api_url content)")
-    parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16], help="Concurrency levels")
-    parser.add_argument("--requests-per-level", type=int, default=10, help="Requests per level")
-    parser.add_argument("--prompt", type=str, default="Explain quantum physics in one sentence.", help="Benchmark prompt")
-    parser.add_argument("--wait-timeout", type=int, default=1200, help="Wait timeout in seconds")
-
-    # Email arguments
-    parser.add_argument("--email", type=str, help="Recipient email address")
-    parser.add_argument("--smtp-host", type=str, default=os.getenv("SMTP_HOST"), help="SMTP host")
-    parser.add_argument("--smtp-port", type=int, default=int(os.getenv("SMTP_PORT", "587")), help="SMTP port")
-    parser.add_argument("--smtp-user", type=str, default=os.getenv("SMTP_USER"), help="SMTP user")
-    parser.add_argument("--smtp-password", type=str, default=os.getenv("SMTP_PASSWORD"), help="SMTP password")
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--gpu", default="RTX_4090")
+    parser.add_argument("--url", help="Override API URL")
+    parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16])
+    parser.add_argument("--requests-per-level", type=int, default=10)
     args = parser.parse_args()
 
     api_url = args.url
-    if not api_url and os.path.exists(".vast_api_url"):
+    if not api_url:
+        if not os.path.exists(".vast_api_url"):
+            log("::error::.vast_api_url not found and --url not provided")
+            sys.exit(1)
         with open(".vast_api_url", "r") as f:
             api_url = f.read().strip()
 
-    if not api_url:
-        log_error("API URL not provided and .vast_api_url not found.")
-        sys.exit(1)
+    tester = LoadTester(api_url, args.model, "vllm-benchmark-token")
+    all_results = []
 
-    email_config = None
-    if args.email:
-        email_config = {
-            'to': args.email,
-            'smtp': {
-                'host': args.smtp_host,
-                'port': args.smtp_port,
-                'user': args.smtp_user,
-                'password': args.smtp_password
-            }
-        }
+    log(f"Starting benchmark for {args.model}...")
+    for c in args.concurrency_levels:
+        log(f"  Concurrency {c}...")
+        res = await tester.run(c, args.requests_per_level, "Explain quantum physics in one sentence.")
+        if res:
+            all_results.append(res)
+            log(f"    TPS: {res['total_tps']:.2f}")
 
-    try:
-        await run_speed_test_suite(
-            gpu_name=args.gpu,
-            model_name=args.model,
-            api_url=api_url,
-            concurrency_levels=args.concurrency_levels,
-            requests_per_level=args.requests_per_level,
-            prompt=args.prompt,
-            email_config=email_config,
-            api_key="vllm-benchmark-token",
-            log_group_cb=log_group_cb
-        )
-    except Exception as e:
-        log_error(f"Benchmarking failed: {e}")
-        sys.exit(1)
+    if all_results:
+        summary_file = os.getenv("GITHUB_STEP_SUMMARY")
+        if summary_file:
+            with open(summary_file, "a") as f:
+                f.write(f"## Results: {args.model} on {args.gpu}\n")
+                f.write("| C | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|\n")
+                for r in all_results:
+                    f.write(f"| {r['concurrency']} | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
+
+        output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
+        with open(output_file, "w") as f:
+            json.dump(all_results, f, indent=2)
+        with open("results.json", "w") as f:
+            json.dump(all_results, f, indent=2)
 
 if __name__ == "__main__":
     asyncio.run(main())
