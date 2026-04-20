@@ -10,51 +10,7 @@ The Gemma Performance Lab is an automated benchmarking framework designed to eva
 
 ## Architecture
 
-```plantuml
-@startuml
-actor User
-participant Orchestrator as "Orchestrator\n(orchestrator.py)"
-participant VastManager as "Infrastructure Manager\n(infra/vast_manager.py)"
-participant LoadTester as "Load Test Engine\n(bench/speed_test.py)"
-participant VastAPI as "Vast.ai API"
-participant GPUInstance as "GPU Instance\n(vLLM / Model)"
-
-User -> Orchestrator: Run benchmark suite
-Orchestrator -> VastManager: find_offers(gpu_name)
-VastManager -> VastAPI: GET /offers
-VastAPI --> VastManager: List of offers
-VastManager --> Orchestrator: Offers
-
-Orchestrator -> VastManager: rent_instance(offer_id, template, env)
-VastManager -> VastAPI: POST /instances
-VastAPI --> VastManager: Instance ID
-VastManager --> Orchestrator: Instance ID
-
-Orchestrator -> VastManager: wait_for_ssh(instance_id)
-VastManager -> VastAPI: GET /instances
-VastAPI --> VastManager: Instance details (IP/Port)
-VastManager --> Orchestrator: Connection details
-
-Orchestrator -> VastManager: wait_for_api_ready(api_url)
-VastManager -> GPUInstance: GET /v1/models
-GPUInstance --> VastManager: 200 OK
-VastManager --> Orchestrator: API Ready
-
-Orchestrator -> LoadTester: run_benchmark_suite(api_url, model)
-loop for each concurrency level
-    LoadTester -> GPUInstance: POST /v1/chat/completions (stream=True)
-    GPUInstance --> LoadTester: Token stream
-end
-LoadTester --> Orchestrator: Performance metrics (TTFT, ITL, TPS)
-
-Orchestrator -> User: Display results & Save report
-
-Orchestrator -> VastManager: teardown_instance()
-VastManager -> VastAPI: DELETE /instances/{id}
-VastAPI --> VastManager: Success
-VastManager --> Orchestrator: Done
-@enduml
-```
+![Architecture](https://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/chatelao/vast-ai-tests/main/architecture.puml)
 
 ### 1. Infrastructure Manager (`infra/vast_manager.py`)
 - **Responsibility:** Automated lifecycle management of Vast.ai instances.
