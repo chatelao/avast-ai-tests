@@ -39,6 +39,7 @@ class LoadTester:
         try:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
+                    log(f"Error: HTTP {response.status} from {url}")
                     return None
 
                 async for line in response.content:
@@ -52,7 +53,8 @@ class LoadTester:
 
             duration = time.perf_counter() - start_time
             return {"ttft": ttft, "tokens": tokens, "duration": duration}
-        except Exception:
+        except Exception as e:
+            log(f"Exception during request: {type(e).__name__}: {e}")
             return None
 
     async def run(self, concurrency, num_requests, prompt):
@@ -100,6 +102,9 @@ async def main():
         if res:
             all_results.append(res)
             log(f"    TPS: {res['total_tps']:.2f}")
+            # Incremental save
+            with open("results.json", "w") as f:
+                json.dump(all_results, f, indent=2)
 
     if all_results:
         summary_file = os.getenv("GITHUB_STEP_SUMMARY")
@@ -113,8 +118,10 @@ async def main():
         output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
         with open(output_file, "w") as f:
             json.dump(all_results, f, indent=2)
-        with open("results.json", "w") as f:
-            json.dump(all_results, f, indent=2)
+        log(f"Results saved to {output_file} and results.json")
+    else:
+        log("::error::No benchmark results collected.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())
