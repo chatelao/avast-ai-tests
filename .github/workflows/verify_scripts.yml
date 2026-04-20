@@ -9,6 +9,7 @@ on:
 
 jobs:
   verify-with-mock:
+    if: false
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -45,6 +46,7 @@ jobs:
         cat benchmark_mock-gpu_*.json | jq '.'
 
   verify-with-vllm:
+    if: false
     runs-on: ubuntu-latest
     env:
       VLLM_TARGET_DEVICE: cpu

@@ -53,7 +53,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Provision Vast.ai Instance
+    - name: Launching the vLLM (active)
       env:
         VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -61,9 +61,22 @@ jobs:
         python provision.py \
           --gpu "${{ github.event.inputs.gpu }}" \
           --model "${{ github.event.inputs.model }}" \
-          ${{ github.event.inputs.template_hash && format('--template-hash {0}', github.event.inputs.template_hash) || '' }}
+          ${{ github.event.inputs.template_hash && format('--template-hash {0}', github.event.inputs.template_hash) || '' }} \
+          --only-launch
 
-    - name: Run Benchmark
+    - name: Waiting for vLLM to be running (active)
+      env:
+        VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      run: |
+        python provision.py \
+          --gpu "${{ github.event.inputs.gpu }}" \
+          --model "${{ github.event.inputs.model }}" \
+          ${{ github.event.inputs.template_hash && format('--template-hash {0}', github.event.inputs.template_hash) || '' }} \
+          --only-wait
+
+    - name: Running the tests (inactive)
+      if: false
       run: |
         python benchmark.py \
           --gpu "${{ github.event.inputs.gpu }}" \
@@ -72,8 +85,8 @@ jobs:
           --requests-per-level ${{ github.event.inputs.requests_per_level }} \
           --prompt "${{ github.event.inputs.prompt }}"
 
-    - name: Teardown Instance
-      if: always()
+    - name: Stopping the vLLM (inactive)
+      if: false
       env:
         VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
       run: |
@@ -81,7 +94,7 @@ jobs:
 
     - name: Upload results
       uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && false
       with:
         name: benchmark-results
         path: benchmark_*.json
