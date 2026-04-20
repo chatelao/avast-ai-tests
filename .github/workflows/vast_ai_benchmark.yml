@@ -53,23 +53,24 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Launching the vLLM (active)
+    - name: Part 1 (run)
       env:
         VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        python provision.py \
+        python api_provision.py \
           --gpu "${{ github.event.inputs.gpu }}" \
           --model "${{ github.event.inputs.model }}" \
           ${{ github.event.inputs.template_hash && format('--template-hash {0}', github.event.inputs.template_hash) || '' }} \
           --only-launch
 
-    - name: Waiting for vLLM to be running (active)
+    - name: Setup 2 (don't run)
+      if: false
       env:
         VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        python provision.py \
+        python api_provision.py \
           --gpu "${{ github.event.inputs.gpu }}" \
           --model "${{ github.event.inputs.model }}" \
           ${{ github.event.inputs.template_hash && format('--template-hash {0}', github.event.inputs.template_hash) || '' }} \
