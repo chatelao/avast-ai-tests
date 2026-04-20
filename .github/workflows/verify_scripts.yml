@@ -27,7 +27,7 @@ jobs:
 
     - name: Run mock server
       run: |
-        python __archiv_2026-04-20/tests/mock_server.py &
+        python tests/mock_server.py &
         # Wait for mock server to be ready
         timeout 30 bash -c 'until curl -sf http://localhost:8000/v1/models; do sleep 1; done' || (echo "Mock server failed to start" && exit 1)
 
@@ -44,6 +44,11 @@ jobs:
       run: |
         ls benchmark_mock-gpu_*.json
         cat benchmark_mock-gpu_*.json | jq '.'
+
+    - name: Teardown mock
+      if: always()
+      run: |
+        kill $(lsof -t -i :8000) 2>/dev/null || true
 
   verify-on-vast:
     runs-on: ubuntu-latest

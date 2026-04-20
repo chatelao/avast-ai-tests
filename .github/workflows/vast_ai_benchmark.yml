@@ -86,4 +86,5 @@ jobs:
       if: always()
       with:
         name: benchmark-results
-        path: results.json
+        path: benchmark_*.json
+        if-no-files-found: error

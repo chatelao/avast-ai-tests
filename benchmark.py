@@ -39,6 +39,8 @@ class LoadTester:
         try:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
+                    error_text = await response.text()
+                    log(f"::error::Request failed with status {response.status}: {error_text[:200]}")
                     return None
 
                 async for line in response.content:
@@ -92,6 +94,7 @@ async def main():
 
     tester = LoadTester(api_url, args.model, "vllm-benchmark-token")
     all_results = []
+    output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
 
     log(f"Starting benchmark for {args.model}...")
     for c in args.concurrency_levels:
@@ -100,6 +103,15 @@ async def main():
         if res:
             all_results.append(res)
             log(f"    TPS: {res['total_tps']:.2f}")
+        else:
+            log(f"::warning::Concurrency level {c} failed to return any valid results")
+
+        # Incremental save
+        if all_results:
+            with open(output_file, "w") as f:
+                json.dump(all_results, f, indent=2)
+            with open("results.json", "w") as f:
+                json.dump(all_results, f, indent=2)
 
     if all_results:
         summary_file = os.getenv("GITHUB_STEP_SUMMARY")
@@ -109,12 +121,9 @@ async def main():
                 f.write("| C | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|\n")
                 for r in all_results:
                     f.write(f"| {r['concurrency']} | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
-
-        output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
-        with open(output_file, "w") as f:
-            json.dump(all_results, f, indent=2)
-        with open("results.json", "w") as f:
-            json.dump(all_results, f, indent=2)
+    else:
+        log("::error::Benchmark failed: no results were collected.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())
