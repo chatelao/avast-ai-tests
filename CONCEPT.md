@@ -10,16 +10,66 @@ The Gemma Performance Lab is an automated benchmarking framework designed to eva
 
 ## Architecture
 
+```plantuml
+@startuml
+actor User
+participant Orchestrator as "Orchestrator\n(orchestrator.py)"
+participant VastManager as "Infrastructure Manager\n(infra/vast_manager.py)"
+participant LoadTester as "Load Test Engine\n(bench/speed_test.py)"
+participant VastAPI as "Vast.ai API"
+participant GPUInstance as "GPU Instance\n(vLLM / Model)"
+
+User -> Orchestrator: Run benchmark suite
+Orchestrator -> VastManager: find_offers(gpu_name)
+VastManager -> VastAPI: GET /offers
+VastAPI --> VastManager: List of offers
+VastManager --> Orchestrator: Offers
+
+Orchestrator -> VastManager: rent_instance(offer_id, template, env)
+VastManager -> VastAPI: POST /instances
+VastAPI --> VastManager: Instance ID
+VastManager --> Orchestrator: Instance ID
+
+Orchestrator -> VastManager: wait_for_ssh(instance_id)
+VastManager -> VastAPI: GET /instances
+VastAPI --> VastManager: Instance details (IP/Port)
+VastManager --> Orchestrator: Connection details
+
+Orchestrator -> VastManager: wait_for_api_ready(api_url)
+VastManager -> GPUInstance: GET /v1/models
+GPUInstance --> VastManager: 200 OK
+VastManager --> Orchestrator: API Ready
+
+Orchestrator -> LoadTester: run_benchmark_suite(api_url, model)
+loop for each concurrency level
+    LoadTester -> GPUInstance: POST /v1/chat/completions (stream=True)
+    GPUInstance --> LoadTester: Token stream
+end
+LoadTester --> Orchestrator: Performance metrics (TTFT, ITL, TPS)
+
+Orchestrator -> User: Display results & Save report
+
+Orchestrator -> VastManager: teardown_instance()
+VastManager -> VastAPI: DELETE /instances/{id}
+VastAPI --> VastManager: Success
+VastManager --> Orchestrator: Done
+@enduml
+```
+
 ### 1. Infrastructure Manager (`infra/vast_manager.py`)
 - **Responsibility:** Automated lifecycle management of Vast.ai instances.
+- **Inputs:** GPU name, Offer ID, Template Hash, vLLM environment variables.
+- **Outputs:** Instance ID, Status, SSH/API connection details.
 - **Features:**
     - Querying the Vast.ai marketplace for specific GPU models.
     - Automated renting of instances based on a "best-value" or "specific-match" policy.
     - SSH key management and instance readiness verification.
     - Guaranteed teardown to prevent runaway costs.
 
-### 2. Load Test Engine (`bench/load_tester.py`)
+### 2. Load Test Engine (`bench/speed_test.py`)
 - **Responsibility:** High-concurrency performance measurement.
+- **Inputs:** API URL, Model name, Concurrency levels, Prompt, API Key.
+- **Outputs:** Granular timing data (TTFT, ITL), Throughput (TPS), JSON reports.
 - **Features:**
     - Asynchronous request handling using `aiohttp`.
     - Support for streaming LLM responses to capture granular timing data.
@@ -28,6 +78,8 @@ The Gemma Performance Lab is an automated benchmarking framework designed to eva
 
 ### 3. Orchestrator (`orchestrator.py`)
 - **Responsibility:** End-to-end workflow automation.
+- **Inputs:** CLI arguments (GPU/Model selection), Vast.ai API Key, Hugging Face Token.
+- **Outputs:** End-to-end benchmark suite execution, aggregated results, instance teardown.
 - **Features:**
     - Sequencing: Provisioning -> Environment Setup -> Benchmarking -> Cleanup.
     - Deploying LLM engines (e.g., vLLM or Ollama) via Docker.
