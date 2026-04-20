@@ -24,7 +24,8 @@ def main():
     sdk = VastAI(api_key=api_key)
 
     log(f"Searching for {args.gpu}...")
-    query = f"gpu_name={args.gpu} num_gpus=1 rentable=True verified=True"
+    # Filter for CUDA 12.9 compatibility to support the vLLM template
+    query = f"gpu_name={args.gpu} num_gpus=1 rentable=True verified=True cuda_max_good>=12.9"
     offers = sdk.search_offers(query=query, order="dph_total")
     if not offers:
         log(f"::error::No offers found for {args.gpu}")
