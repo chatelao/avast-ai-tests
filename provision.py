@@ -11,27 +11,45 @@ async def main():
     parser.add_argument("--model", type=str, required=True, help="Model name")
     parser.add_argument("--template-hash", type=str, default="38b2b68cf896e8582dff6f305a2041b1", help="Vast.ai template hash")
     parser.add_argument("--wait-timeout", type=int, default=1200, help="Wait timeout in seconds")
+    parser.add_argument("--only-launch", action="store_true", help="Only launch the instance and exit")
+    parser.add_argument("--only-wait", action="store_true", help="Wait for an existing instance to be ready")
 
     args = parser.parse_args()
     vast = VastManager()
+    vllm_api_key = "vllm-benchmark-token"
 
     try:
-        log_group_start("Infrastructure Provisioning")
-        offers = vast.find_offers(args.gpu)
-        if not offers:
-            raise RuntimeError(f"No offers found for {args.gpu}")
+        instance_id = None
+        if args.only_wait:
+            if not os.path.exists(".vast_instance_id"):
+                raise RuntimeError(".vast_instance_id file not found, cannot wait for instance")
+            with open(".vast_instance_id", "r") as f:
+                instance_id = int(f.read().strip())
+            log_group_start(f"Waiting for Existing Instance {instance_id}")
+        else:
+            log_group_start("Infrastructure Provisioning")
+            offers = vast.find_offers(args.gpu)
+            if not offers:
+                raise RuntimeError(f"No offers found for {args.gpu}")
 
-        offer_id = offers[0]['id']
-        vllm_api_key = "vllm-benchmark-token"
-        env_vars = vast.get_vllm_env_vars(args.model, api_key=vllm_api_key)
+            offer_id = offers[0]['id']
+            env_vars = vast.get_vllm_env_vars(args.model, api_key=vllm_api_key)
 
-        instance_id = vast.rent_instance(offer_id, template_hash=args.template_hash, env=env_vars)
-        if not instance_id:
-            raise RuntimeError("Failed to rent instance")
+            instance_id = vast.rent_instance(offer_id, template_hash=args.template_hash, env=env_vars)
+            if not instance_id:
+                raise RuntimeError("Failed to rent instance")
 
-        with open(".vast_instance_id", "w") as f:
-            f.write(str(instance_id))
+            with open(".vast_instance_id", "w") as f:
+                f.write(str(instance_id))
 
+            log_notice(f"Instance {instance_id} launched.")
+
+        if args.only_launch:
+            log_notice(f"Only-launch requested. Instance {instance_id} is being provisioned.")
+            log_group_end()
+            return
+
+        # Wait phase
         if not vast.wait_for_ssh(instance_id, timeout=args.wait_timeout):
             raise RuntimeError(f"Instance {instance_id} failed to initialize")
 
@@ -43,11 +61,14 @@ async def main():
         if not await vast.wait_for_api_ready(api_url, api_key=vllm_api_key, timeout=args.wait_timeout):
             raise RuntimeError("API failed to become ready")
 
-        log_notice(f"Provisioning successful. API URL: {api_url}")
+        log_notice(f"Provisioning successful.")
+        log_notice(f"API URL: {api_url}")
+        log_notice(f"Bearer Token: {vllm_api_key}")
+        log_notice(f"Verify manually with: curl -H 'Authorization: Bearer {vllm_api_key}' {api_url}/v1/models")
         log_group_end()
     except Exception as e:
         log_group_end()
-        log_error(f"Provisioning failed: {e}")
+        log_error(f"Operation failed: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
