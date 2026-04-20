@@ -12,50 +12,46 @@ The Gemma Performance Lab is an automated benchmarking framework designed to eva
 
 ![Architecture](https://www.plantuml.com/plantuml/proxy?cache=no&src=https://raw.githubusercontent.com/chatelao/vast-ai-tests/main/architecture.puml)
 
-The system is composed of four standalone Python scripts orchestrated by GitHub Actions. State is shared between steps using local files (`.vast_instance_id` and `.vast_api_url`).
-
-### 1. Provisioning (`launch.py`)
-- **Responsibility:** Automated marketplace search and instance rental.
-- **Inputs:** GPU name, Model name, Template Hash.
-- **Outputs:** Persists the Instance ID to `.vast_instance_id`.
+### 1. Infrastructure Manager (`infra/vast_manager.py`)
+- **Responsibility:** Automated lifecycle management of Vast.ai instances.
+- **Inputs:** GPU name, Offer ID, Template Hash, vLLM environment variables.
+- **Outputs:** Instance ID, Status, SSH/API connection details.
 - **Features:**
-    - Queries Vast.ai for specific GPU models (e.g., RTX 4090).
-    - Configures vLLM environment variables and port mappings (8000 for API).
-    - Uses predefined template hashes for consistent deployments.
+    - Querying the Vast.ai marketplace for specific GPU models.
+    - Automated renting of instances based on a "best-value" or "specific-match" policy.
+    - SSH key management and instance readiness verification.
+    - Guaranteed teardown to prevent runaway costs.
 
-### 2. Readiness Check (`poll.py`)
-- **Responsibility:** Verifies the instance is running and the vLLM API is healthy.
-- **Inputs:** Reads Instance ID from `.vast_instance_id`.
-- **Outputs:** Persists the resolved API URL to `.vast_api_url`.
-- **Features:**
-    - Polls Vast.ai instance metadata for public IP and mapped external ports.
-    - Performs health checks against the `/v1/models` endpoint.
-    - Implements retry logic with absolute timestamps in logs.
-
-### 3. Load Testing (`benchmark.py`)
+### 2. Load Test Engine (`bench/speed_test.py`)
 - **Responsibility:** High-concurrency performance measurement.
-- **Inputs:** Reads API URL from `.vast_api_url`, takes model and concurrency levels.
-- **Outputs:** JSON reports and GitHub Step Summary table.
+- **Inputs:** API URL, Model name, Concurrency levels, Prompt, API Key.
+- **Outputs:** Granular timing data (TTFT, ITL), Throughput (TPS), JSON reports.
 - **Features:**
     - Asynchronous request handling using `aiohttp`.
-    - Captures TTFT and TPS for varying concurrency levels.
-    - Supports streaming responses for granular timing data.
+    - Support for streaming LLM responses to capture granular timing data.
+    - Configurable workloads (varying prompt lengths, output lengths, and concurrency).
+    - Measurement of TTFT, ITL, and total tokens per second.
 
-### 4. Cleanup (`teardown.py`)
-- **Responsibility:** Guaranteed resource destruction to prevent runaway costs.
-- **Inputs:** Reads Instance ID from `.vast_instance_id`.
+### 3. Orchestrator (`orchestrator.py`)
+- **Responsibility:** End-to-end workflow automation.
+- **Inputs:** CLI arguments (GPU/Model selection), Vast.ai API Key, Hugging Face Token.
+- **Outputs:** End-to-end benchmark suite execution, aggregated results, instance teardown.
 - **Features:**
-    - Destroys the Vast.ai instance regardless of benchmark success/failure.
-    - Removes temporary state files.
+    - Sequencing: Provisioning -> Environment Setup -> Benchmarking -> Cleanup.
+    - Deploying LLM engines (e.g., vLLM or Ollama) via Docker.
+    - Aggregating raw data from multiple runs into a unified report.
 
 ## Target Metrics
 - **TTFT (Time to First Token):** The time from request initiation to the first character received.
+- **ITL (Inter-Token Latency):** Average time between successive tokens in a stream.
 - **TPS (Tokens Per Second):** Total throughput across all concurrent users.
 - **TPS/$:** Tokens per second divided by the hourly rental rate.
 
-## Workflow Execution
-The primary entry point is the **GitHub Actions workflow** (`vast_ai_benchmark.yml`), which executes the scripts in sequence:
-1. **Launch:** Request a GPU and start the vLLM container.
-2. **Poll:** Wait for the server to be fully responsive.
-3. **Benchmark:** Run a series of load tests at different concurrency levels.
-4. **Teardown:** Destroy the instance and cleanup.
+## Planned Workflow
+1. **Search:** Identify available GPUs on Vast.ai that match the test requirements.
+2. **Provision:** Rent the instance and wait for it to become reachable via SSH.
+3. **Deploy:** Pull and run the serving engine Docker image with the target Gemma model.
+4. **Benchmark:** Execute the load tester with a matrix of concurrency levels (e.g., 1, 10, 50, 100 users).
+5. **Collect:** Extract logs and performance data.
+6. **Teardown:** Immediately destroy the instance to stop billing.
+7. **Report:** Generate comparative charts and tables.

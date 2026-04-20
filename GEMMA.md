@@ -11,10 +11,7 @@ Compare LLM model performances using vast.ai as remote GPU / vLLM provider:
 - <tbd>
 
 ## GPUs to be tested
-- RTX_3090
-- RTX_4090
-- A100
-- H100
+- <tbd>
 
 # HOWTO
 - Use the vast.ai template "38b2b68cf896e8582dff6f305a2041b1" to setup a vLLM instance.

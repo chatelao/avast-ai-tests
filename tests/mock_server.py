@@ -50,7 +50,7 @@ async def chat_completions(request):
             "choices": [{"delta": {"content": token}}]
         }
         await response.write(f"data: {json.dumps(chunk)}\n\n".encode('utf-8'))
-        await asyncio.sleep(0.05) # Simulate some ITL
+        await asyncio.sleep(0.01)
 
     await response.write(b"data: [DONE]\n\n")
     return response

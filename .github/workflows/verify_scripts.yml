@@ -38,7 +38,7 @@ jobs:
         HF_TOKEN: mock-token
       run: |
         echo "--- Launching ---"
-        python launch.py --gpu "RTX 4090" --model "tiny-model"
+        python launch.py --gpu "RTX_4090" --model "tiny-model"
 
         echo "--- Polling ---"
         # We need to speed up polling for the mock test
