@@ -87,7 +87,6 @@ app = web.Application()
 # vLLM Endpoints
 app.router.add_post('/v1/chat/completions', chat_completions)
 app.router.add_get('/v1/models', get_models)
-app.router.add_get('/v1/models', models_handler)
 
 app.router.add_post('/api/v0/bundles/', search_offers)
 app.router.add_put('/api/v0/asks/{id}/', create_instance)
