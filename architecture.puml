@@ -1,44 +1,44 @@
 @startuml
 actor User
-participant Orchestrator as "Orchestrator\n(orchestrator.py)"
-participant VastManager as "Infrastructure Manager\n(infra/vast_manager.py)"
-participant LoadTester as "Load Test Engine\n(bench/speed_test.py)"
+participant GHA as "GitHub Actions\n(vast_ai_benchmark.yml)"
+participant Launch as "Launch Script\n(launch.py)"
+participant Poll as "Poll Script\n(poll.py)"
+participant Bench as "Benchmark Script\n(benchmark.py)"
+participant Teardown as "Teardown Script\n(teardown.py)"
 participant VastAPI as "Vast.ai API"
-participant GPUInstance as "GPU Instance\n(vLLM / Model)"
+participant GPUInstance as "vLLM Engine\n(GPU Instance)"
 
-User -> Orchestrator ++ : Run benchmark suite
-Orchestrator -> VastManager ++ : find_offers(gpu_name)
-VastManager -> VastAPI ++ : GET /offers
-VastAPI --> VastManager -- : List of offers
-VastManager --> Orchestrator -- : Offers
+User -> GHA ++ : Trigger Workflow
+GHA -> Launch ++ : Execute
+Launch -> VastAPI ++ : Search & Rent Instance
+VastAPI --> Launch -- : Instance ID
+Launch -> Launch : Save ID to .vast_instance_id
+Launch --> GHA -- : Success
 
-Orchestrator -> VastManager ++ : rent_instance(offer_id, template, env)
-VastManager -> VastAPI ++ : POST /instances
-VastAPI --> VastManager -- : Instance ID
-VastManager --> Orchestrator -- : Instance ID
+GHA -> Poll ++ : Execute
+Poll -> Poll : Read ID from .vast_instance_id
+Poll -> VastAPI ++ : Get Instance Details
+VastAPI --> Poll -- : IP & Port Mappings
+Poll -> GPUInstance ++ : Health Check (/v1/models)
+GPUInstance --> Poll -- : 200 OK
+Poll -> Poll : Save URL to .vast_api_url
+Poll --> GHA -- : API Ready
 
-Orchestrator -> VastManager ++ : wait_for_ssh(instance_id)
-VastManager -> VastAPI ++ : GET /instances
-VastAPI --> VastManager -- : Instance details (IP/Port)
-VastManager --> Orchestrator -- : Connection details
-
-Orchestrator -> VastManager ++ : wait_for_api_ready(api_url)
-VastManager -> GPUInstance ++ : GET /v1/models
-GPUInstance --> VastManager -- : 200 OK
-VastManager --> Orchestrator -- : API Ready
-
-Orchestrator -> LoadTester ++ : run_benchmark_suite(api_url, model)
+GHA -> Bench ++ : Execute
+Bench -> Bench : Read URL from .vast_api_url
 loop for each concurrency level
-    LoadTester -> GPUInstance ++ : POST /v1/chat/completions (stream=True)
-    GPUInstance --> LoadTester -- : Token stream
+    Bench -> GPUInstance ++ : Load Test Request
+    GPUInstance --> Bench -- : Token Stream
 end
-LoadTester --> Orchestrator -- : Performance metrics (TTFT, ITL, TPS)
+Bench -> GHA : Upload Results (Step Summary)
+deactivate Bench
 
-Orchestrator -> User : Display results & Save report
+GHA -> Teardown ++ : Execute (Always)
+Teardown -> Teardown : Read ID from .vast_instance_id
+Teardown -> VastAPI ++ : Destroy Instance
+VastAPI --> Teardown -- : Success
+Teardown -> Teardown : Cleanup State Files
+Teardown --> GHA -- : Done
 
-Orchestrator -> VastManager ++ : teardown_instance()
-VastManager -> VastAPI ++ : DELETE /instances/{id}
-VastAPI --> VastManager -- : Success
-VastManager --> Orchestrator -- : Done
-return
+GHA --> User -- : Benchmark Complete
 @enduml
