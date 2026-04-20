@@ -31,10 +31,6 @@ on:
         description: 'Vast.ai template hash'
         required: false
         default: '38b2b68cf896e8582dff6f305a2041b1'
-      prompt:
-        description: 'Benchmark prompt'
-        required: true
-        default: 'Explain quantum physics in one sentence.'
 
 jobs:
   benchmark:
@@ -53,41 +49,32 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Part 1 (run)
+    - name: Launch
       env:
         VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        python api_provision.py \
+        python launch.py \
           --gpu "${{ github.event.inputs.gpu }}" \
           --model "${{ github.event.inputs.model }}" \
-          ${{ github.event.inputs.template_hash && format('--template-hash {0}', github.event.inputs.template_hash) || '' }} \
-          --only-launch
+          --template-hash "${{ github.event.inputs.template_hash }}"
 
-    - name: Setup 2 (don't run)
-      if: false
+    - name: Poll
       env:
         VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
-        HF_TOKEN: ${{ secrets.HF_TOKEN }}
       run: |
-        python api_provision.py \
-          --gpu "${{ github.event.inputs.gpu }}" \
-          --model "${{ github.event.inputs.model }}" \
-          ${{ github.event.inputs.template_hash && format('--template-hash {0}', github.event.inputs.template_hash) || '' }} \
-          --only-wait
+        python poll.py
 
-    - name: Running the tests (inactive)
-      if: false
+    - name: Benchmark
       run: |
         python benchmark.py \
           --gpu "${{ github.event.inputs.gpu }}" \
           --model "${{ github.event.inputs.model }}" \
           --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
-          --requests-per-level ${{ github.event.inputs.requests_per_level }} \
-          --prompt "${{ github.event.inputs.prompt }}"
+          --requests-per-level ${{ github.event.inputs.requests_per_level }}
 
-    - name: Stopping the vLLM (inactive)
-      if: false
+    - name: Teardown
+      if: always()
       env:
         VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
       run: |
@@ -95,7 +82,7 @@ jobs:
 
     - name: Upload results
       uses: actions/upload-artifact@v4
-      if: always() && false
+      if: always()
       with:
         name: benchmark-results
-        path: benchmark_*.json
+        path: results.json
