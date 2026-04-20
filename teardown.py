@@ -22,7 +22,11 @@ def main():
         log("::error::VAST_AI_API_KEY not set")
         sys.exit(1)
 
-    sdk = VastAI(api_key=api_key)
+    server_url = os.getenv("VAST_API_URL")
+    if server_url:
+        log(f"Using custom Vast.ai API URL: {server_url}")
+
+    sdk = VastAI(api_key=api_key, server_url=server_url)
     log(f"Destroying instance {instance_id}...")
     result = sdk.destroy_instance(id=int(instance_id))
     log(f"Result: {result}")

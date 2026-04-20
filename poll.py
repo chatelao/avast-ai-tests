@@ -13,7 +13,8 @@ def log(message, end="\n"):
 
 def get_instance_details(instance_id):
     api_key = os.getenv("VAST_AI_API_KEY")
-    url = "https://console.vast.ai/api/v0/instances/"
+    base_url = os.getenv("VAST_API_URL", "https://console.vast.ai").rstrip('/')
+    url = f"{base_url}/api/v0/instances/"
     headers = {"Authorization": f"Bearer {api_key}"}
     try:
         log(f"Fetching metadata from {url}...")
@@ -28,7 +29,7 @@ def get_instance_details(instance_id):
             return inst
 
         log(f"Warning: Instance {instance_id} not found in the list of {len(instances)} instances.")
-        direct_url = f"https://console.vast.ai/api/v0/instances/{instance_id}/"
+        direct_url = f"{base_url}/api/v0/instances/{instance_id}/"
         log(f"Trying direct path: {direct_url}...")
         resp = requests.get(direct_url, headers=headers, timeout=15)
         if resp.status_code == 200:
