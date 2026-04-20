@@ -21,7 +21,11 @@ def main():
         log("::error::VAST_AI_API_KEY not set")
         sys.exit(1)
 
-    sdk = VastAI(api_key=api_key)
+    server_url = os.getenv("VAST_API_URL")
+    if server_url:
+        log(f"Using custom Vast.ai API URL: {server_url}")
+
+    sdk = VastAI(api_key=api_key, server_url=server_url)
 
     log(f"Searching for {args.gpu}...")
     query = f"gpu_name={args.gpu} num_gpus=1 rentable=True verified=True"
