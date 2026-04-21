@@ -13,7 +13,8 @@ def main():
     parser = argparse.ArgumentParser(description="Launch Vast.ai vLLM instance")
     parser.add_argument("--gpu", type=str, default="RTX_4090")
     parser.add_argument("--model", type=str, required=True)
-    parser.add_argument("--template-hash", type=str, default="38b2b68cf896e8582dff6f305a2041b1")
+    parser.add_argument("--template", "--template-hash", dest="template", type=str, default="38b2b68cf896e8582dff6f305a2041b1")
+    parser.add_argument("--disk", type=float, default=10)
     args = parser.parse_args()
 
     api_key = os.getenv("VAST_AI_API_KEY")
@@ -64,8 +65,16 @@ def main():
         "-p 8080:8080": "1"
     }
 
-    log(f"Renting instance with template {args.template_hash}...")
-    result = sdk.create_instance(id=offer_id, template_hash=args.template_hash, env=env_dict)
+    # Determine if it's a template hash or a docker image
+    # Template hashes are usually hex strings, while images contain '/' or ':'
+    is_image = "/" in args.template or ":" in args.template
+
+    if is_image:
+        log(f"Renting instance with image {args.template} and {args.disk}GB disk...")
+        result = sdk.create_instance(id=offer_id, image=args.template, disk=args.disk, env=env_dict)
+    else:
+        log(f"Renting instance with template {args.template} and {args.disk}GB disk...")
+        result = sdk.create_instance(id=offer_id, template_hash=args.template, disk=args.disk, env=env_dict)
     if result.get("success"):
         instance_id = result.get("new_contract")
         log(f"Successfully created instance {instance_id}")

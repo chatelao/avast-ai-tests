@@ -17,7 +17,7 @@ Compare LLM model performances using vast.ai as remote GPU / vLLM provider:
 - H100
 
 # HOWTO
-- Use the vast.ai template "38b2b68cf896e8582dff6f305a2041b1" to setup a vLLM instance.
+- Use the vast.ai template "38b2b68cf896e8582dff6f305a2041b1" or a Docker image like "vllm/vllm-openai:latest" to setup a vLLM instance.
 - General rule: Add a date/timestamp to every line logged.
 
 # Secrets 
