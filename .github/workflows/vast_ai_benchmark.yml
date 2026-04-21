@@ -35,10 +35,18 @@ on:
         description: 'Number of requests per concurrency level'
         required: true
         default: '10'
-      template_hash:
-        description: 'Vast.ai template hash'
-        required: false
+      template:
+        description: 'Vast.ai template hash or Docker image'
+        required: true
         default: '38b2b68cf896e8582dff6f305a2041b1'
+        type: choice
+        options:
+        - '38b2b68cf896e8582dff6f305a2041b1'
+        - 'vllm/vllm-openai:latest'
+      disk:
+        description: 'Disk size in GB'
+        required: true
+        default: '10'
 
 jobs:
   benchmark:
@@ -66,7 +74,8 @@ jobs:
         python launch.py \
           --gpu "${{ github.event.inputs.gpu }}" \
           --model "${{ github.event.inputs.model }}" \
-          --template-hash "${{ github.event.inputs.template_hash }}"
+          --template "${{ github.event.inputs.template }}" \
+          --disk "${{ github.event.inputs.disk }}"
 
     - name: Poll
       env:

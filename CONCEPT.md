@@ -16,12 +16,13 @@ The system is composed of four standalone Python scripts orchestrated by GitHub 
 
 ### 1. Provisioning (`launch.py`)
 - **Responsibility:** Automated marketplace search and instance rental.
-- **Inputs:** GPU name, Model name, Template Hash.
+- **Inputs:** GPU name, Model name, Template (Hash or Docker Image), Disk size.
 - **Outputs:** Persists the Instance ID to `.vast_instance_id`.
 - **Features:**
     - Queries Vast.ai for specific GPU models (e.g., RTX 4090).
     - Configures vLLM environment variables and port mappings (8000 for API).
-    - Uses predefined template hashes for consistent deployments.
+    - Supports both predefined template hashes and direct Docker images (e.g., `vllm/vllm-openai:latest`).
+    - Configurable disk size for large models.
 
 ### 2. Readiness Check (`poll.py`)
 - **Responsibility:** Verifies the instance is running and the vLLM API is healthy.
