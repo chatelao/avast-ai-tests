@@ -5,7 +5,26 @@ import asyncio
 # Mock state to track instances
 instances = {}
 
+def is_authorized(request):
+    if not instances:
+        return True # Allow if no instances exist for bootstrapping/discovery
+
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return False
+    token = auth_header.split(" ")[1]
+
+    # Check across all instances for a matching token
+    for inst in instances.values():
+        env = inst.get("env", {})
+        if token == env.get("OPEN_BUTTON_TOKEN") or token == env.get("VLLM_API_KEY"):
+            return True
+    return False
+
 async def chat_completions(request):
+    if not is_authorized(request):
+        return web.json_response({"error": "Unauthorized"}, status=401)
+
     try:
         data = await request.json()
     except Exception:
@@ -59,6 +78,8 @@ async def chat_completions(request):
     return response
 
 async def get_models(request):
+    if not is_authorized(request):
+        return web.json_response({"error": "Unauthorized"}, status=401)
     return web.json_response({"data": [{"id": "tiny-model"}]})
 
 async def search_offers(request):
