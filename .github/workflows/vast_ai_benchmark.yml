@@ -6,9 +6,11 @@ on:
       gpu:
         description: 'GPU model to test'
         required: true
-        default: 'A100_PCIE'
+        default: 'RTX_4090'
         type: choice
         options:
+        - 'RTX_3090'
+        - 'RTX_4090'
         - 'A100_SXM4'
         - 'A100_PCIE'
         - 'H100_SXM'
