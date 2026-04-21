@@ -47,6 +47,10 @@ def main():
     if any(m in args.model for m in models_needing_template):
         vllm_args += " --chat-template \"{% for message in messages %}{{ message.content }}{% endfor %}\""
 
+    # Gemma 4 models require --trust-remote-code because the architecture is often newer than the transformers version in the template.
+    if "gemma-4" in args.model:
+        vllm_args += " --trust-remote-code"
+
     env_dict = {
         "VLLM_MODEL": args.model,
         "VLLM_ARGS": vllm_args,
