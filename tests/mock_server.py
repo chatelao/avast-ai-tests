@@ -80,6 +80,18 @@ async def chat_completions(request):
 async def get_models(request):
     if not is_authorized(request):
         return web.json_response({"error": "Unauthorized"}, status=401)
+
+    # Simulate gemma4 architecture failure if --trust-remote-code is missing
+    if instances:
+        for inst in instances.values():
+            env = inst.get("env", {})
+            model = env.get("VLLM_MODEL", "")
+            args = env.get("VLLM_ARGS", "")
+            if "gemma-4" in model and "--trust-remote-code" not in args:
+                return web.json_response({
+                    "error": "The checkpoint you are trying to load has model type gemma4 but Transformers does not recognize this architecture."
+                }, status=500)
+
     return web.json_response({"data": [{"id": "tiny-model"}]})
 
 async def search_offers(request):
