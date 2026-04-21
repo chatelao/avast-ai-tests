@@ -16,7 +16,7 @@ on:
       model:
         description: 'LLM model name'
         required: true
-        default: 'facebook/opt-125m'
+        default: 'google/gemma-2-9b-it'
         type: choice
         options:
         - 'facebook/opt-125m'
@@ -92,4 +92,7 @@ jobs:
       if: always()
       with:
         name: benchmark-results
-        path: results.json
+        path: |
+          results.json
+          benchmark_*.json
+        if-no-files-found: error

@@ -39,6 +39,8 @@ class LoadTester:
         try:
             async with session.post(url, json=payload, headers=headers) as response:
                 if response.status != 200:
+                    text = await response.text()
+                    log(f"::error::Request failed with status {response.status}: {text[:200]}")
                     return None
 
                 async for line in response.content:
@@ -52,7 +54,8 @@ class LoadTester:
 
             duration = time.perf_counter() - start_time
             return {"ttft": ttft, "tokens": tokens, "duration": duration}
-        except Exception:
+        except Exception as e:
+            log(f"::error::Exception during request: {type(e).__name__}: {e}")
             return None
 
     async def run(self, concurrency, num_requests, prompt):
@@ -118,6 +121,9 @@ async def main():
         with open("results.json", "w") as f:
             json.dump(all_results, f, indent=2)
         log(f"Results written to results.json")
+    else:
+        log("::error::No results collected. Exiting with failure.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())
