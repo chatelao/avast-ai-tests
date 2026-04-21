@@ -11,6 +11,24 @@ async def chat_completions(request):
     except Exception:
         data = {}
 
+    # Check for chat template requirement simulation
+    if instances:
+        # Just pick the first instance for simplicity in mock
+        inst = list(instances.values())[0]
+        env = inst.get("env", {})
+        model = env.get("VLLM_MODEL", "")
+        args = env.get("VLLM_ARGS", "")
+
+        # Simulate transformers v4.44 requirement for certain models
+        if "facebook/opt" in model and "--chat-template" not in args:
+            return web.json_response({
+                "error": {
+                    "message": "As of transformers v4.44, default chat template is no longer allowed, so you must provide a chat template if the tokenizer does not define one.",
+                    "type": "BadRequestError",
+                    "param": None
+                }
+            }, status=400)
+
     stream = data.get("stream", False)
 
     if not stream:
@@ -52,6 +70,11 @@ async def search_offers(request):
     })
 
 async def create_instance(request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
     offer_id = request.match_info['id']
     instance_id = 2001
     instances[str(instance_id)] = {
@@ -59,7 +82,8 @@ async def create_instance(request):
         "actual_status": "loading",
         "public_ipaddr": "127.0.0.1",
         "ports": {"8000/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8000"}]},
-        "status_msg": "Loading..."
+        "status_msg": "Loading...",
+        "env": data.get("env", {})
     }
     # Simulate transitioning to running after a short delay
     asyncio.create_task(make_instance_running(str(instance_id)))
