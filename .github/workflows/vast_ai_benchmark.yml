@@ -6,13 +6,17 @@ on:
       gpu:
         description: 'GPU model to test'
         required: true
-        default: 'RTX_4090'
+        default: 'A100_PCIE'
         type: choice
         options:
-        - 'RTX_3090'
-        - 'RTX_4090'
-        - 'A100'
-        - 'H100'
+        - 'A100_SXM4'
+        - 'A100_PCIE'
+        - 'H100_SXM'
+        - 'H100_NVL'
+        - 'H100_PCIE'
+        - 'H200'
+        - 'H200_NVL'
+        - 'B200'
       model:
         description: 'LLM model name'
         required: true

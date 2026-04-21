@@ -38,7 +38,7 @@ jobs:
         HF_TOKEN: "mock-hf-token"
       run: |
         echo "--- Launch ---"
-        python launch.py --gpu "RTX_4090" --model "tiny-model"
+        python launch.py --gpu "A100_PCIE" --model "tiny-model"
 
         echo "--- Poll ---"
         # Reduce poll sleep for faster CI
