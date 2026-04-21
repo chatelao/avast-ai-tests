@@ -40,6 +40,13 @@ def main():
     hf_token = os.getenv("HF_TOKEN", "")
     vllm_api_key = "vllm-benchmark-token"
     vllm_args = "--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000"
+
+    # As of transformers v4.44, certain models (like OPT) require a chat template to be explicitly provided.
+    # We provide a basic template if the model is from a family known to lack one.
+    models_needing_template = ["facebook/opt-125m"]
+    if any(m in args.model for m in models_needing_template):
+        vllm_args += " --chat-template \"{% for message in messages %}{{ message['content'] }}{% endfor %}\""
+
     env_str = f"-e VLLM_MODEL={args.model} -e VLLM_ARGS='{vllm_args}' -e HF_TOKEN={hf_token} -e OPEN_BUTTON_TOKEN={vllm_api_key} -p 1111:1111 -p 7860:7860 -p 8000:8000 -p 8265:8265 -p 8080:8080"
     env_dict = parse_env(env_str)
 
