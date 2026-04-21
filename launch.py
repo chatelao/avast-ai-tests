@@ -45,10 +45,20 @@ def main():
     # We provide a basic template if the model is from a family known to lack one.
     models_needing_template = ["facebook/opt-125m"]
     if any(m in args.model for m in models_needing_template):
-        vllm_args += " --chat-template \"{% for message in messages %}{{ message['content'] }}{% endfor %}\""
+        vllm_args += " --chat-template \"{% for message in messages %}{{ message.content }}{% endfor %}\""
 
-    env_str = f"-e VLLM_MODEL={args.model} -e VLLM_ARGS='{vllm_args}' -e HF_TOKEN={hf_token} -e OPEN_BUTTON_TOKEN={vllm_api_key} -p 1111:1111 -p 7860:7860 -p 8000:8000 -p 8265:8265 -p 8080:8080"
-    env_dict = parse_env(env_str)
+    env_dict = {
+        "VLLM_MODEL": args.model,
+        "VLLM_ARGS": vllm_args,
+        "HF_TOKEN": hf_token,
+        "OPEN_BUTTON_TOKEN": vllm_api_key,
+        "VLLM_API_KEY": vllm_api_key,
+        "-p 1111:1111": "1",
+        "-p 7860:7860": "1",
+        "-p 8000:8000": "1",
+        "-p 8265:8265": "1",
+        "-p 8080:8080": "1"
+    }
 
     log(f"Renting instance with template {args.template_hash}...")
     result = sdk.create_instance(id=offer_id, template_hash=args.template_hash, env=env_dict)

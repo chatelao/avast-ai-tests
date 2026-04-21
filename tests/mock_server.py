@@ -6,13 +6,13 @@ import asyncio
 instances = {}
 
 def is_authorized(request):
+    if not instances:
+        return True # Allow if no instances exist for bootstrapping/discovery
+
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return False
     token = auth_header.split(" ")[1]
-
-    if not instances:
-        return True # Allow if no instances exist for bootstrapping/discovery
 
     # Check across all instances for a matching token
     for inst in instances.values():
