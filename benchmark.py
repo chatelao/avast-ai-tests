@@ -93,7 +93,8 @@ async def main():
         with open(".vast_api_url", "r") as f:
             api_url = f.read().strip()
 
-    tester = LoadTester(api_url, args.model, "vllm-benchmark-token")
+    vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
+    tester = LoadTester(api_url, args.model, vllm_api_key)
     all_results = []
 
     log(f"Starting benchmark for {args.model}...")

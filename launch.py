@@ -39,8 +39,8 @@ def main():
     log(f"Found offer {offer_id} at ${offers[0].get('dph_total'):.3f}/hr")
 
     hf_token = os.getenv("HF_TOKEN", "")
-    vllm_api_key = "vllm-benchmark-token"
-    vllm_args = "--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000"
+    vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
+    vllm_args = f"--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000 --api-key {vllm_api_key}"
 
     # As of transformers v4.44, certain models (like OPT) require a chat template to be explicitly provided.
     # We provide a basic template if the model is from a family known to lack one.
