@@ -62,7 +62,8 @@ async def wait_for_api(url, api_key, timeout=1200):
                         log(f"Response: {content[:200]}...")
                         return True
                     elif resp.status == 401:
-                        log("Error: 401 Unauthorized. Check Bearer Token.")
+                        text = await resp.text()
+                        log(f"Error: 401 Unauthorized. Check Bearer Token. Detail: {text[:200]}")
                     else:
                         text = await resp.text()
                         log(f"Detail: {text[:100]}")
@@ -131,7 +132,8 @@ async def main():
     with open(".vast_api_url", "w") as f:
         f.write(api_url)
 
-    if await wait_for_api(api_url, "vllm-benchmark-token"):
+    vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
+    if await wait_for_api(api_url, vllm_api_key):
         log("\n--- Polling SUCCESS ---")
     else:
         log("::error::API failed to respond 200 OK within 20 minutes")
