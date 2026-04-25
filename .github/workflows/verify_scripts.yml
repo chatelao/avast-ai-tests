@@ -41,9 +41,8 @@ jobs:
         python launch.py --gpu "RTX_4090" --model "tiny-model"
 
         echo "--- Poll ---"
-        # Reduce poll sleep for faster CI
-        sed -i 's/await asyncio.sleep(20)/await asyncio.sleep(1)/g' poll.py
-        python poll.py
+        # Use short interval for faster CI
+        python poll.py --timeout 60 --interval 1
 
         echo "--- Benchmark ---"
         python benchmark.py \

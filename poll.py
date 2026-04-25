@@ -6,6 +6,7 @@ import requests
 import asyncio
 import aiohttp
 import datetime
+import argparse
 
 def log(message, end="\n"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -40,7 +41,7 @@ def get_instance_details(instance_id):
         log(f"Error fetching metadata: {e}")
         return None
 
-async def wait_for_api(url, api_key, timeout=1200):
+async def wait_for_api(url, api_key, timeout=1800, interval=20):
     endpoint = f"{url}/v1/models"
     log(f"\n--- Starting API Health Check ---")
     log(f"Endpoint: {endpoint}")
@@ -74,10 +75,15 @@ async def wait_for_api(url, api_key, timeout=1200):
             except Exception as e:
                 print(f"Unexpected error: {type(e).__name__}: {e}", flush=True)
 
-            await asyncio.sleep(20)
+            await asyncio.sleep(interval)
     return False
 
 async def main():
+    parser = argparse.ArgumentParser(description="Poll Vast.ai instance for readiness")
+    parser.add_argument("--timeout", type=int, default=1800, help="Total timeout in seconds")
+    parser.add_argument("--interval", type=int, default=20, help="Polling interval in seconds")
+    args = parser.parse_args()
+
     log("--- Poll Script Startup ---")
     if not os.path.exists(".vast_instance_id"):
         log("::error::.vast_instance_id not found")
@@ -89,9 +95,9 @@ async def main():
 
     api_url = None
     start_time = time.time()
-    log(f"Waiting for instance {instance_id} to initialize...")
+    log(f"Waiting for instance {instance_id} to initialize (timeout: {args.timeout}s)...")
 
-    while time.time() - start_time < 1200:
+    while time.time() - start_time < args.timeout:
         details = get_instance_details(instance_id)
         if details:
             status = details.get("actual_status") or details.get("state")
@@ -122,10 +128,10 @@ async def main():
         else:
             log("  Instance metadata not yet available.")
 
-        await asyncio.sleep(20)
+        await asyncio.sleep(args.interval)
 
     if not api_url:
-        log("::error::Timeout waiting for instance running state or port 8000 mapping")
+        log(f"::error::Timeout waiting for instance running state or port 8000 mapping after {args.timeout}s")
         sys.exit(1)
 
     log(f"::notice::Resolved vLLM API URL: {api_url}")
@@ -133,10 +139,10 @@ async def main():
         f.write(api_url)
 
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
-    if await wait_for_api(api_url, vllm_api_key):
+    if await wait_for_api(api_url, vllm_api_key, timeout=args.timeout, interval=args.interval):
         log("\n--- Polling SUCCESS ---")
     else:
-        log("::error::API failed to respond 200 OK within 20 minutes")
+        log(f"::error::API failed to respond 200 OK within {args.timeout} seconds")
         sys.exit(1)
 
 if __name__ == "__main__":

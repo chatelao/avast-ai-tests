@@ -28,8 +28,10 @@ def main():
 
     sdk = VastAI(api_key=api_key, server_url=server_url)
 
-    log(f"Searching for {args.gpu}...")
-    query = f"gpu_name={args.gpu} num_gpus=1 rentable=True verified=True"
+    gpu_name = args.gpu.replace("_", " ")
+    log(f"Searching for {gpu_name}...")
+    # Quoting the GPU name because it contains spaces
+    query = f"gpu_name=\"{gpu_name}\" num_gpus=1 rentable=True verified=True cuda_max_good>=12.4 inet_down>200 disk_space>={args.disk}"
     offers = sdk.search_offers(query=query, order="dph_total")
     if not offers:
         log(f"::error::No offers found for {args.gpu}")
