@@ -52,7 +52,7 @@ on:
       disk:
         description: 'Disk size in GB'
         required: true
-        default: '10'
+        default: '40'
 
 jobs:
   benchmark:
