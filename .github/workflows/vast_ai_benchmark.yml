@@ -19,6 +19,15 @@ on:
         - 'H200'
         - 'H200_NVL'
         - 'B200'
+      num_gpus:
+        description: 'Number of GPUs'
+        required: true
+        default: '1'
+        type: choice
+        options:
+        - '1'
+        - '2'
+        - '4'
       model:
         description: 'LLM model name'
         required: true
@@ -82,6 +91,7 @@ jobs:
       run: |
         python launch.py \
           --gpu "${{ github.event.inputs.gpu }}" \
+          --num-gpus "${{ github.event.inputs.num_gpus }}" \
           --model "${{ github.event.inputs.model }}" \
           --template "${{ github.event.inputs.template }}" \
           --disk "${{ github.event.inputs.disk }}"
@@ -96,6 +106,7 @@ jobs:
       run: |
         python benchmark.py \
           --gpu "${{ github.event.inputs.gpu }}" \
+          --num-gpus "${{ github.event.inputs.num_gpus }}" \
           --model "${{ github.event.inputs.model }}" \
           --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
           --requests-per-level ${{ github.event.inputs.requests_per_level }}
