@@ -80,6 +80,7 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
     parser.add_argument("--gpu", default="RTX_4090")
+    parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--url", help="Override API URL")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16])
     parser.add_argument("--requests-per-level", type=int, default=10)
@@ -109,13 +110,14 @@ async def main():
         summary_file = os.getenv("GITHUB_STEP_SUMMARY")
         if summary_file:
             with open(summary_file, "a") as f:
-                f.write(f"## Results: {args.model} on {args.gpu}\n")
+                f.write(f"## Results: {args.model} on {args.num_gpus}x {args.gpu}\n")
                 f.write("| C | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|\n")
                 for r in all_results:
                     f.write(f"| {r['concurrency']} | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
             log(f"Summary written to {summary_file}")
 
-        output_file = f"benchmark_{args.gpu.replace(' ', '_')}_{int(time.time())}.json"
+        gpu_str = f"{args.num_gpus}x_{args.gpu.replace(' ', '_')}"
+        output_file = f"benchmark_{gpu_str}_{int(time.time())}.json"
         with open(output_file, "w") as f:
             json.dump(all_results, f, indent=2)
         log(f"Results written to {output_file}")

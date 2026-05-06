@@ -38,6 +38,7 @@ def estimate_model_params(model_name):
 def main():
     parser = argparse.ArgumentParser(description="Launch Vast.ai vLLM instance")
     parser.add_argument("--gpu", type=str, default="RTX_4090")
+    parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--template", "--template-hash", dest="template", type=str, default="38b2b68cf896e8582dff6f305a2041b1")
     parser.add_argument("--disk", type=float, default=10)
@@ -56,18 +57,19 @@ def main():
 
     params_billions = estimate_model_params(args.model)
     model_size_gb = params_billions * 2
-    required_vram = model_size_gb + 12
+    required_vram_per_gpu = (model_size_gb / args.num_gpus) + 12
     required_disk = model_size_gb + 12
     effective_disk = max(args.disk, required_disk)
 
     log(f"Estimated parameters: {params_billions:.2f}B")
-    log(f"Required VRAM: {required_vram:.2f}GB")
+    log(f"Total model size: {model_size_gb:.2f}GB")
+    log(f"Required VRAM per GPU ({args.num_gpus} GPUs): {required_vram_per_gpu:.2f}GB")
     log(f"Required Disk: {effective_disk:.2f}GB (model requires {required_disk:.2f}GB, user requested {args.disk}GB)")
 
     gpu_name = args.gpu.replace("_", " ")
-    log(f"Searching for {gpu_name}...")
+    log(f"Searching for {args.num_gpus}x {gpu_name}...")
     # Quoting the GPU name because it contains spaces
-    query = f"gpu_name=\"{gpu_name}\" num_gpus=1 rentable=True verified=True cuda_max_good>=12.4 inet_down>200 gpu_ram>={required_vram} disk_space>={effective_disk}"
+    query = f"gpu_name=\"{gpu_name}\" num_gpus={args.num_gpus} rentable=True verified=True cuda_max_good>=12.4 inet_down>200 gpu_ram>={required_vram_per_gpu} disk_space>={effective_disk}"
     offers = sdk.search_offers(query=query, order="dph_total")
     if not offers:
         log(f"::error::No offers found for {args.gpu}")
@@ -79,6 +81,9 @@ def main():
     hf_token = os.getenv("HF_TOKEN", "")
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
     vllm_args = f"--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000 --api-key {vllm_api_key}"
+
+    if args.num_gpus > 1:
+        vllm_args += f" --tensor-parallel-size {args.num_gpus}"
 
     # As of transformers v4.44, certain models (like OPT) require a chat template to be explicitly provided.
     # We provide a basic template if the model is from a family known to lack one.
