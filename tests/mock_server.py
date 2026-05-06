@@ -98,7 +98,13 @@ async def search_offers(request):
     # VastAI SDK POSTs to /api/v0/bundles/
     return web.json_response({
         "offers": [
-            {"id": 1001, "dph_total": 0.45, "gpu_name": "RTX 4090"}
+            {
+                "id": 1001,
+                "dph_total": 0.45,
+                "gpu_name": "RTX 4090",
+                "gpu_ram": 80000,
+                "disk_space": 500
+            }
         ]
     })
 

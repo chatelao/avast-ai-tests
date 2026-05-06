@@ -2,12 +2,38 @@ import os
 import sys
 import argparse
 import datetime
+import re
 from vastai.sdk import VastAI
 from vastai.utils import parse_env
 
 def log(message, end="\n"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}", end=end, flush=True)
+
+def estimate_model_params(model_name):
+    """
+    Estimates the number of parameters in billions from the model name.
+    """
+    model_name_lower = model_name.lower()
+
+    # Explicit mappings for models without size in name
+    if "mistral-small" in model_name_lower:
+        return 22.0
+    if "mistral-large" in model_name_lower:
+        return 123.0
+
+    # Regex to find patterns like 7b, 125m, 0.5b
+    match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])", model_name_lower)
+    if match:
+        value = float(match.group(1))
+        unit = match.group(2)
+        if unit == 'm':
+            return value / 1000.0
+        else:
+            return value
+
+    # Default fallback
+    return 7.0 # Default to 7B if unknown
 
 def main():
     parser = argparse.ArgumentParser(description="Launch Vast.ai vLLM instance")
@@ -28,10 +54,20 @@ def main():
 
     sdk = VastAI(api_key=api_key, server_url=server_url)
 
+    params_billions = estimate_model_params(args.model)
+    model_size_gb = params_billions * 2
+    required_vram = model_size_gb + 12
+    required_disk = model_size_gb + 12
+    effective_disk = max(args.disk, required_disk)
+
+    log(f"Estimated parameters: {params_billions:.2f}B")
+    log(f"Required VRAM: {required_vram:.2f}GB")
+    log(f"Required Disk: {effective_disk:.2f}GB (model requires {required_disk:.2f}GB, user requested {args.disk}GB)")
+
     gpu_name = args.gpu.replace("_", " ")
     log(f"Searching for {gpu_name}...")
     # Quoting the GPU name because it contains spaces
-    query = f"gpu_name=\"{gpu_name}\" num_gpus=1 rentable=True verified=True cuda_max_good>=12.4 inet_down>200 disk_space>={args.disk}"
+    query = f"gpu_name=\"{gpu_name}\" num_gpus=1 rentable=True verified=True cuda_max_good>=12.4 inet_down>200 gpu_ram>={required_vram} disk_space>={effective_disk}"
     offers = sdk.search_offers(query=query, order="dph_total")
     if not offers:
         log(f"::error::No offers found for {args.gpu}")
@@ -72,11 +108,11 @@ def main():
     is_image = "/" in args.template or ":" in args.template
 
     if is_image:
-        log(f"Renting instance with image {args.template} and {args.disk}GB disk...")
-        result = sdk.create_instance(id=offer_id, image=args.template, disk=args.disk, env=env_dict)
+        log(f"Renting instance with image {args.template} and {effective_disk}GB disk...")
+        result = sdk.create_instance(id=offer_id, image=args.template, disk=effective_disk, env=env_dict)
     else:
-        log(f"Renting instance with template {args.template} and {args.disk}GB disk...")
-        result = sdk.create_instance(id=offer_id, template_hash=args.template, disk=args.disk, env=env_dict)
+        log(f"Renting instance with template {args.template} and {effective_disk}GB disk...")
+        result = sdk.create_instance(id=offer_id, template_hash=args.template, disk=effective_disk, env=env_dict)
     if result.get("success"):
         instance_id = result.get("new_contract")
         log(f"Successfully created instance {instance_id}")
