@@ -56,5 +56,5 @@ jobs:
 
     - name: Check benchmark results
       run: |
-        ls benchmark_mock-gpu_*.json
-        cat benchmark_mock-gpu_*.json | jq '.'
+        ls benchmark_*_mock-gpu_*.json
+        cat benchmark_*_mock-gpu_*.json | jq '.'
