@@ -44,9 +44,10 @@ on:
       template:
         description: 'Vast.ai template hash or Docker image'
         required: true
-        default: '38b2b68cf896e8582dff6f305a2041b1'
+        default: '119393d230e84d5a0b41972676d23dce'
         type: choice
         options:
+        - '119393d230e84d5a0b41972676d23dce'
         - '38b2b68cf896e8582dff6f305a2041b1'
         - 'vllm/vllm-openai:latest'
       disk:
