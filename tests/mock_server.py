@@ -145,6 +145,24 @@ async def destroy_instance(request):
         return web.json_response({"success": True})
     return web.json_response({"success": False, "error": "Not found"}, status=404)
 
+async def request_logs(request):
+    instance_id = request.match_info['id']
+    # Return a result_url that the SDK will then GET
+    result_url = f"http://{request.host}/api/v0/instances/logs_result/{instance_id}/"
+    return web.json_response({"result_url": result_url})
+
+async def get_logs_content(request):
+    instance_id = request.match_info['id']
+    # Generate some mock logs
+    logs = [
+        "Starting vLLM engine...",
+        f"Loading model for instance {instance_id}...",
+        "Model weights loaded.",
+        "Initializing KV cache...",
+        "vLLM API ready and listening on port 8000."
+    ]
+    return web.Response(text="\n".join(logs))
+
 app = web.Application()
 
 # vLLM Endpoints
@@ -155,6 +173,8 @@ app.router.add_post('/api/v0/bundles/', search_offers)
 app.router.add_put('/api/v0/asks/{id}/', create_instance)
 app.router.add_get('/api/v0/instances/', list_instances)
 app.router.add_delete('/api/v0/instances/{id}/', destroy_instance)
+app.router.add_put('/api/v0/instances/request_logs/{id}/', request_logs)
+app.router.add_get('/api/v0/instances/logs_result/{id}/', get_logs_content)
 
 if __name__ == '__main__':
     print("Starting combined mock server on port 8000...")
