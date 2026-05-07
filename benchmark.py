@@ -7,6 +7,30 @@ import os
 import argparse
 import sys
 import datetime
+import random
+
+PROMPTS = [
+    "Explain quantum physics in one sentence.",
+    "What are the benefits of exercise?",
+    "How does a combustion engine work?",
+    "Write a short poem about the ocean.",
+    "Summarize the plot of Hamlet.",
+    "What is the capital of France?",
+    "Give me a recipe for chocolate chip cookies.",
+    "Who won the Nobel Prize in Physics in 2023?",
+    "Explain the theory of relativity.",
+    "What is the meaning of life?",
+    "How do I bake a cake?",
+    "What is the fastest land animal?",
+    "Write a joke about a programmer.",
+    "What are the three laws of thermodynamics?",
+    "Translate 'hello' to Japanese.",
+    "How far is the moon from Earth?",
+    "What is the square root of 144?",
+    "Tell me a fun fact about dolphins.",
+    "Who wrote '1984'?",
+    "What is the tallest mountain in the world?"
+]
 
 def log(message, end="\n"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -19,6 +43,7 @@ class LoadTester:
         self.api_key = api_key
 
     async def send_request(self, session, prompt):
+        log(f" Sending request with prompt: {prompt[:50]}...")
         url = f"{self.base_url}/v1/chat/completions"
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -67,11 +92,12 @@ class LoadTester:
             log(f"::error::Exception during request: {type(e).__name__}: {e}")
             return None
 
-    async def run(self, concurrency, num_requests, prompt):
+    async def run(self, concurrency, num_requests):
         semaphore = asyncio.Semaphore(concurrency)
         connector = aiohttp.TCPConnector(limit=0)
         async with aiohttp.ClientSession(connector=connector) as session:
             async def worker():
+                prompt = random.choice(PROMPTS)
                 async with semaphore:
                     return await self.send_request(session, prompt)
 
@@ -114,7 +140,7 @@ async def main():
     log(f"Starting benchmark for {args.model}...")
     for c in args.concurrency_levels:
         log(f"  Concurrency {c}...")
-        res = await tester.run(c, args.requests_per_level, "Explain quantum physics in one sentence.")
+        res = await tester.run(c, args.requests_per_level)
         if res:
             all_results.append(res)
             log(f"    TPS: {res['total_tps']:.2f}")
