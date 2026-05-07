@@ -45,6 +45,13 @@ on:
         - 'Qwen/Qwen2.5-Coder-32B-Instruct'
         - 'deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct'
         - 'mistralai/Codestral-22B-v0.1'
+        - 'moonshotai/Kimi-K2.5'
+        - 'tiiuae/Falcon3-10B-Instruct'
+        - 'meta-llama/Llama-4-Maverick-17B-128E-Instruct'
+        - 'Qwen/Qwen3-235B-A22B'
+        - 'zai-org/GLM-4.6'
+        - 'openai/gpt-oss-120b'
+        - 'Qwen/Qwen3-235B-A22B-Instruct-2507'
       concurrency_levels:
         description: 'Space-separated concurrency levels'
         required: true

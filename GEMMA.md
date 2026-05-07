@@ -8,7 +8,13 @@ Compare LLM model performances using vast.ai as remote GPU / vLLM provider:
 - TPS/$: Cost efficiency of the hardware.
 
 ## Models to be tested
-- <tbd>
+- moonshotai/Kimi-K2.5
+- tiiuae/Falcon3-10B-Instruct
+- meta-llama/Llama-4-Maverick-17B-128E-Instruct
+- Qwen/Qwen3-235B-A22B
+- zai-org/GLM-4.6
+- openai/gpt-oss-120b
+- Qwen/Qwen3-235B-A22B-Instruct-2507
 
 ## GPUs to be tested
 - RTX_3090
