@@ -31,12 +31,26 @@ The recommendations are based on the following formulas used in `launch.py`:
 
 ## GPU Overview
 
-| GPU Model | VRAM | Best Use Case |
-| :--- | :--- | :--- |
-| **RTX 3090 / 4090** | 24 GB | Small models (<10B) or Multi-GPU (4x) for medium models. Best TPS/$. |
-| **A100 (PCIE/SXM)** | 40 / 80 GB | Medium to Large models. High reliability and bandwidth. |
-| **H100 (SXM/NVL/PCIE)**| 80 GB | State-of-the-art performance for large models. |
-| **H200 / B200** | 141+ GB | Massive models or extremely large context windows. |
+| GPU Model | VRAM | Optimal Bus | Best Use Case |
+| :--- | :--- | :--- | :--- |
+| **RTX 3090 / 4090** | 24 GB | PCIe 4.0 | Small models (<10B) or Multi-GPU (4x) for medium models. Best TPS/$. |
+| **A100 (PCIE/SXM)** | 40 / 80 GB | SXM (NVLink) | Medium to Large models. High reliability and bandwidth. |
+| **H100 (SXM/NVL/PCIE)**| 80 GB | SXM (NVLink) | State-of-the-art performance for large models. |
+| **H200 / B200** | 141+ GB | SXM (NVLink) | Massive models or extremely large context windows. |
+
+## Bus Technology & Interconnects
+
+The choice of bus technology significantly impacts multi-GPU performance:
+
+- **PCIe (Peripheral Component Interconnect Express):**
+  - **Best for:** Single-GPU setups or high-throughput batch processing where GPU-to-GPU communication is minimal.
+  - **Limitation:** Bottleneck for Tensor Parallelism due to lower bandwidth compared to NVLink.
+- **NVLink / SXM (NVIDIA Link):**
+  - **Best for:** Multi-GPU configurations (2x, 4x, 8x) using Tensor Parallelism (vLLM).
+  - **Advantage:** Dramatically reduces Inter-Token Latency (ITL) and synchronization overhead. Essential for large models that don't fit on a single GPU.
+- **Optimal Deployment:**
+  - **Small Models (<10B):** PCIe is sufficient.
+  - **Medium/Large Models (Multi-GPU):** Prioritize SXM/NVLink instances on Vast.ai to ensure stable ITL.
 
 ## Storage Considerations
 
