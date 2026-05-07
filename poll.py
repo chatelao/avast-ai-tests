@@ -7,6 +7,7 @@ import asyncio
 import aiohttp
 import datetime
 import argparse
+from vastai.sdk import VastAI
 
 def log(message, end="\n"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -41,16 +42,33 @@ def get_instance_details(instance_id):
         log(f"Error fetching metadata: {e}")
         return None
 
-async def wait_for_api(url, api_key, timeout=1800, interval=20):
+async def wait_for_api(url, api_key, sdk, instance_id, timeout=1800, interval=20):
     endpoint = f"{url}/v1/models"
     log(f"\n--- Starting API Health Check ---")
     log(f"Endpoint: {endpoint}")
     headers = {"Authorization": f"Bearer {api_key}"}
     start = time.time()
+    last_log_content = ""
 
     async with aiohttp.ClientSession() as session:
         while time.time() - start < timeout:
             elapsed = int(time.time() - start)
+
+            # Try to fetch instance logs to show progress
+            try:
+                current_logs = sdk.logs(int(instance_id))
+                if isinstance(current_logs, str) and current_logs != last_log_content:
+                    new_lines = current_logs[len(last_log_content):]
+                    if new_lines:
+                        log(f"--- New Instance Logs ---")
+                        print(new_lines.strip(), flush=True)
+                        log(f"--------------------------")
+                    last_log_content = current_logs
+            except Exception as e:
+                # Log fetching might fail if instance is just starting or network issues
+                # We don't want to spam the console with these errors, but maybe a one-liner if it's not a common one
+                pass
+
             try:
                 # Need special handling for the "end" parameter in timestamped log
                 timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -138,8 +156,12 @@ async def main():
     with open(".vast_api_url", "w") as f:
         f.write(api_url)
 
+    vast_api_key = os.getenv("VAST_AI_API_KEY")
+    vast_api_url = os.getenv("VAST_API_URL")
+    sdk = VastAI(api_key=vast_api_key, server_url=vast_api_url)
+
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
-    if await wait_for_api(api_url, vllm_api_key, timeout=args.timeout, interval=args.interval):
+    if await wait_for_api(api_url, vllm_api_key, sdk, instance_id, timeout=args.timeout, interval=args.interval):
         log("\n--- Polling SUCCESS ---")
     else:
         log(f"::error::API failed to respond 200 OK within {args.timeout} seconds")
