@@ -21,6 +21,8 @@ def estimate_model_params(model_name):
         return 22.0
     if "mistral-large" in model_name_lower:
         return 123.0
+    if "deepseek-coder-v2-lite" in model_name_lower:
+        return 16.0
 
     # Regex to find patterns like 7b, 125m, 0.5b
     match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])", model_name_lower)
