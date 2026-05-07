@@ -47,7 +47,16 @@ class LoadTester:
                     line = line.decode('utf-8').strip()
                     if line.startswith("data: "):
                         if line == "data: [DONE]": break
-                        tokens += 1
+
+                        # Only count as a token if it contains actual content
+                        try:
+                            content_json = json.loads(line[6:])
+                            if content_json.get("choices") and content_json["choices"][0].get("delta", {}).get("content"):
+                                tokens += 1
+                        except json.JSONDecodeError:
+                            # Fallback if JSON parsing fails but it's a data line
+                            tokens += 1
+
                         now = time.perf_counter()
                         if ttft is None: ttft = now - start_time
                         last_token_time = now
@@ -60,20 +69,24 @@ class LoadTester:
 
     async def run(self, concurrency, num_requests, prompt):
         semaphore = asyncio.Semaphore(concurrency)
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(limit=0)
+        async with aiohttp.ClientSession(connector=connector) as session:
             async def worker():
                 async with semaphore:
                     return await self.send_request(session, prompt)
 
+            start_run = time.perf_counter()
             results = await asyncio.gather(*(worker() for _ in range(num_requests)))
+            duration_run = time.perf_counter() - start_run
             valid = [r for r in results if r]
             if not valid: return None
 
             return {
                 "concurrency": concurrency,
+                "success_rate": len(valid) / num_requests,
                 "avg_ttft": statistics.mean([r['ttft'] for r in valid]),
                 "avg_tps": statistics.mean([r['tokens']/r['duration'] for r in valid]),
-                "total_tps": sum([r['tokens'] for r in valid]) / max([r['duration'] for r in valid])
+                "total_tps": sum([r['tokens'] for r in valid]) / duration_run
             }
 
 async def main():
@@ -111,9 +124,9 @@ async def main():
         if summary_file:
             with open(summary_file, "a") as f:
                 f.write(f"## Results: {args.model} on {args.num_gpus}x {args.gpu}\n")
-                f.write("| C | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|\n")
+                f.write("| C | Success Rate | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|---|\n")
                 for r in all_results:
-                    f.write(f"| {r['concurrency']} | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
+                    f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
             log(f"Summary written to {summary_file}")
 
         gpu_str = f"{args.num_gpus}x_{args.gpu.replace(' ', '_')}"
