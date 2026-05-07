@@ -23,6 +23,18 @@ def estimate_model_params(model_name):
         return 123.0
     if "deepseek-coder-v2-lite" in model_name_lower:
         return 16.0
+    if "kimi-k2.5" in model_name_lower:
+        return 1100.0
+    if "falcon3-10b" in model_name_lower:
+        return 10.0
+    if "llama-4-maverick" in model_name_lower:
+        return 400.0
+    if "qwen3-235b" in model_name_lower:
+        return 235.0
+    if "glm-4.6" in model_name_lower:
+        return 357.0
+    if "gpt-oss-120b" in model_name_lower:
+        return 117.0
 
     # Regex to find patterns like 7b, 125m, 0.5b
     match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])", model_name_lower)
@@ -36,6 +48,26 @@ def estimate_model_params(model_name):
 
     # Default fallback
     return 7.0 # Default to 7B if unknown
+
+def get_vllm_args(model, num_gpus, vllm_api_key):
+    vllm_args = f"--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000 --api-key {vllm_api_key}"
+
+    if num_gpus > 1:
+        vllm_args += f" --tensor-parallel-size {num_gpus}"
+
+    # As of transformers v4.44, certain models (like OPT) require a chat template to be explicitly provided.
+    # We provide a basic template if the model is from a family known to lack one.
+    models_needing_template = ["facebook/opt-125m"]
+    if any(m in model for m in models_needing_template):
+        vllm_args += " --chat-template \"{% for message in messages %}{{ message.content }}{% endfor %}\""
+
+    # Gemma 4 models require --trust-remote-code because the architecture is often newer than the transformers version in the template.
+    # New model families also often use custom architectures or are newer than the transformers version in default templates.
+    models_trust_remote_code = ["gemma-4", "kimi", "qwen3", "glm-4", "gpt-oss"]
+    if any(m in model.lower() for m in models_trust_remote_code):
+        vllm_args += " --trust-remote-code"
+
+    return vllm_args
 
 def main():
     parser = argparse.ArgumentParser(description="Launch Vast.ai vLLM instance")
@@ -82,20 +114,7 @@ def main():
 
     hf_token = os.getenv("HF_TOKEN", "")
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
-    vllm_args = f"--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000 --api-key {vllm_api_key}"
-
-    if args.num_gpus > 1:
-        vllm_args += f" --tensor-parallel-size {args.num_gpus}"
-
-    # As of transformers v4.44, certain models (like OPT) require a chat template to be explicitly provided.
-    # We provide a basic template if the model is from a family known to lack one.
-    models_needing_template = ["facebook/opt-125m"]
-    if any(m in args.model for m in models_needing_template):
-        vllm_args += " --chat-template \"{% for message in messages %}{{ message.content }}{% endfor %}\""
-
-    # Gemma 4 models require --trust-remote-code because the architecture is often newer than the transformers version in the template.
-    if "gemma-4" in args.model:
-        vllm_args += " --trust-remote-code"
+    vllm_args = get_vllm_args(args.model, args.num_gpus, vllm_api_key)
 
     env_dict = {
         "VLLM_MODEL": args.model,
