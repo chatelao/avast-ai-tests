@@ -16,25 +16,37 @@ def estimate_model_params(model_name):
     """
     model_name_lower = model_name.lower()
 
-    # Explicit mappings for models without size in name
-    if "mistral-small" in model_name_lower:
-        return 22.0
-    if "mistral-large" in model_name_lower:
-        return 123.0
-    if "deepseek-coder-v2-lite" in model_name_lower:
-        return 16.0
-    if "kimi-k2.5" in model_name_lower:
-        return 1100.0
-    if "falcon3-10b" in model_name_lower:
-        return 10.0
-    if "llama-4-maverick" in model_name_lower:
-        return 400.0
-    if "qwen3-235b" in model_name_lower:
-        return 235.0
-    if "glm-4.6" in model_name_lower:
-        return 357.0
-    if "gpt-oss-120b" in model_name_lower:
-        return 117.0
+    # Explicit mappings for models without size in name or where estimates are needed
+    # Values are in Billions of parameters.
+    # Some values are best-effort estimates based on model family and naming.
+    mappings = {
+        "mistral-small": 22.0,
+        "mistral-large": 123.0,
+        "deepseek-coder-v2-lite": 16.0,
+        "deepseek-v4-flash": 14.0,   # Estimate for Flash-class
+        "deepseek-v4-pro": 671.0,    # Large MoE estimate
+        "deepseek-v3.2": 671.0,      # Large MoE estimate
+        "deepseek-r1": 671.0,        # Standard R1 size
+        "kimi-k2.5": 1100.0,
+        "kimi-k2.6": 1000.0,         # "1T Parameter" from upgrade table
+        "falcon3-10b": 10.0,
+        "llama-4-maverick": 400.0,
+        "llama-4-scout": 400.0,       # High-capacity MoE estimate
+        "qwen3-235b": 235.0,
+        "qwen-3.6-35b": 35.0,        # From name
+        "glm-4.6": 357.0,
+        "glm-5.1": 754.0,            # From upgrade table
+        "gpt-oss-120b": 117.0,
+        "devstral-2": 123.0,         # From memory
+        "mistral-medium-3.5": 128.0, # From memory
+        "codestral": 22.0,           # Estimate based on v0.1
+        "step-3.5-flash": 8.0,       # Estimate for Flash-class
+        "granite-4.0": 8.0           # Estimate for Granite-class
+    }
+
+    for key, value in mappings.items():
+        if key in model_name_lower:
+            return value
 
     # Regex to find patterns like 7b, 125m, 0.5b
     match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])", model_name_lower)
@@ -63,7 +75,10 @@ def get_vllm_args(model, num_gpus, vllm_api_key):
 
     # Gemma 4 models require --trust-remote-code because the architecture is often newer than the transformers version in the template.
     # New model families also often use custom architectures or are newer than the transformers version in default templates.
-    models_trust_remote_code = ["gemma-4", "kimi", "qwen3", "glm-4", "gpt-oss"]
+    models_trust_remote_code = [
+        "gemma-4", "kimi", "qwen3", "qwen-3.6", "glm-4", "glm-5", "gpt-oss",
+        "deepseek", "step", "granite", "mistral", "ministral", "devstral"
+    ]
     if any(m in model.lower() for m in models_trust_remote_code):
         vllm_args += " --trust-remote-code"
 
