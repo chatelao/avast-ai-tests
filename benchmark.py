@@ -133,7 +133,8 @@ class LLMPerfTester:
                 ignore_reinit_error=True,
                 runtime_env={"env_vars": {
                     "OPENAI_API_BASE": self.base_url,
-                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token"
+                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token",
+                    "RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO": "0"
                 }}
             )
 
@@ -142,8 +143,12 @@ class LLMPerfTester:
         from llmperf.models import RequestConfig
         from llmperf import common_metrics
 
-        # Create a pool of actors to handle requests
-        clients = [OpenAIChatCompletionsClient.remote() for _ in range(concurrency)]
+        # Create a pool of actors to handle requests.
+        # Cap at 32 actors to avoid "too many worker processes" and Ray resource exhaustion.
+        # Use num_cpus=0 as these actors are primarily waiting for I/O.
+        # Set max_concurrency to allow each actor to handle multiple concurrent requests.
+        num_actors = min(concurrency, 32)
+        clients = [OpenAIChatCompletionsClient.options(num_cpus=0, max_concurrency=1000).remote() for _ in range(num_actors)]
         client_pool = itertools.cycle(clients)
         semaphore = asyncio.Semaphore(concurrency)
 
