@@ -6,10 +6,10 @@ This document provides recommendations for matching LLM models with appropriate 
 
 The recommendations are based on the following formulas used in `launch.py`:
 - **Model Weight Size (GB):** `Parameters (Billion) * 2` (assuming BF16/FP16).
-- **Required VRAM per GPU (GB):** `(Model Size / Number of GPUs) + 12GB Buffer`.
+- **Required VRAM per GPU (GB):** `(Model Size / Number of GPUs) * 1.1 + 2GB Buffer`.
 - **Required Disk Space (GB):** `Model Size + 12GB Buffer`.
 
-*Note: The 12GB buffer is a conservative estimate used by the automation scripts to ensure sufficient VRAM for KV cache and system overhead.*
+*Note: The refined VRAM buffer (10% overhead + 2GB fixed) allows for more efficient GPU utilization, particularly on consumer cards like the RTX 3090/4090.*
 
 ## Recommendations Table
 

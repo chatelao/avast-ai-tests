@@ -35,6 +35,7 @@ def estimate_model_params(model_name):
         "deepseek-coder-v2-lite": 16.0,
         "deepseek-v4-flash": 284.0,  # Verified count
         "deepseek-v4-pro": 1600.0,   # Verified count
+        "deepseek-v4": 1600.0,       # Default to Pro
         "deepseek-v3.2": 671.0,      # Large MoE estimate
         "deepseek-r1": 671.0,        # Standard R1 size
         "kimi-k2.5": 1100.0,
@@ -54,7 +55,8 @@ def estimate_model_params(model_name):
         "step-3.5-flash": 20.0,      # Verified count
         "granite-4.0": 8.0,          # Estimate for Granite-class
         "magistral-small": 24.0,     # Verified count (24B)
-        "xortron": 24.0              # Verified count (24B)
+        "xortron": 24.0,             # Verified count (24B)
+        "opt-125m": 0.125            # Specific mapping for tests
     }
 
     for key, value in mappings.items():
@@ -110,7 +112,8 @@ def main():
 
     params_billions = estimate_model_params(args.model)
     model_size_gb = params_billions * 2
-    required_vram_per_gpu = (model_size_gb / args.num_gpus) + 12
+    # Use 10% overhead + 2GB fixed buffer for KV cache and system
+    required_vram_per_gpu = (model_size_gb / args.num_gpus) * 1.1 + 2
     required_disk = model_size_gb + 12
     effective_disk = max(args.disk, required_disk)
 
