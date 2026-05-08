@@ -23,8 +23,8 @@ def estimate_model_params(model_name):
         "mistral-small": 22.0,
         "mistral-large": 123.0,
         "deepseek-coder-v2-lite": 16.0,
-        "deepseek-v4-flash": 14.0,   # Estimate for Flash-class
-        "deepseek-v4-pro": 671.0,    # Large MoE estimate
+        "deepseek-v4-flash": 284.0,  # Verified count
+        "deepseek-v4-pro": 1600.0,   # Verified count
         "deepseek-v3.2": 671.0,      # Large MoE estimate
         "deepseek-r1": 671.0,        # Standard R1 size
         "kimi-k2.5": 1100.0,
@@ -40,7 +40,8 @@ def estimate_model_params(model_name):
         "devstral-2": 123.0,         # From memory
         "mistral-medium-3.5": 128.0, # From memory
         "codestral": 22.0,           # Estimate based on v0.1
-        "step-3.5-flash": 8.0,       # Estimate for Flash-class
+        "codestral-2": 22.0,
+        "step-3.5-flash": 20.0,      # Verified count
         "granite-4.0": 8.0           # Estimate for Granite-class
     }
 
@@ -77,7 +78,7 @@ def get_vllm_args(model, num_gpus, vllm_api_key):
     # New model families also often use custom architectures or are newer than the transformers version in default templates.
     models_trust_remote_code = [
         "gemma-4", "kimi", "qwen3", "qwen-3.6", "glm-4", "glm-5", "gpt-oss",
-        "deepseek", "step", "granite", "mistral", "ministral", "devstral"
+        "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4"
     ]
     if any(m in model.lower() for m in models_trust_remote_code):
         vllm_args += " --trust-remote-code"
