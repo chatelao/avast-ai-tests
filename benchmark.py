@@ -8,6 +8,7 @@ import argparse
 import sys
 import datetime
 import random
+import subprocess
 
 PROMPTS = [
     "Explain quantum physics in one sentence.",
@@ -115,6 +116,62 @@ class LoadTester:
                 "total_tps": sum([r['tokens'] for r in valid]) / duration_run
             }
 
+async def run_vllm_benchmark(args, api_url):
+    all_results = []
+    for c in args.concurrency_levels:
+        log(f"  Concurrency {c} (vLLM method)...")
+        result_filename = f"vllm_temp_{c}_{int(time.time())}.json"
+
+        cmd = [
+            sys.executable, "vllm_benchmark_serving.py",
+            "--model", args.model,
+            "--base-url", api_url,
+            "--endpoint", "/v1/chat/completions",
+            "--backend", "openai-chat",
+            "--dataset-name", "random",
+            "--random-input-len", "100", # Match legacy roughly
+            "--random-output-len", "100",
+            "--num-prompts", str(args.requests_per_level),
+            "--concurrency", str(c),
+            "--request-rate", "inf",
+            "--save-result",
+            "--result-filename", result_filename,
+            "--trust-remote-code"
+        ]
+
+        # Pass VLLM_API_KEY if present
+        env = os.environ.copy()
+        if "VLLM_API_KEY_OVERRIDE" in env:
+            env["OPENAI_API_KEY"] = env["VLLM_API_KEY_OVERRIDE"]
+        elif "OPENAI_API_KEY" not in env:
+            env["OPENAI_API_KEY"] = "vllm-benchmark-token"
+
+        try:
+            subprocess.run(cmd, check=True, env=env)
+
+            if not os.path.exists(result_filename):
+                log(f"::error::vLLM result file {result_filename} not found")
+                continue
+
+            with open(result_filename, "r") as f:
+                vllm_res = json.load(f)
+
+            os.remove(result_filename)
+
+            res = {
+                "concurrency": c,
+                "success_rate": vllm_res["completed"] / args.requests_per_level if args.requests_per_level > 0 else 0,
+                "avg_ttft": vllm_res.get("mean_ttft_ms", 0) / 1000,
+                "avg_tps": vllm_res.get("output_throughput", 0),
+                "total_tps": vllm_res.get("output_throughput", 0)
+            }
+            all_results.append(res)
+            log(f"    TPS: {res['total_tps']:.2f}")
+        except subprocess.CalledProcessError as e:
+            log(f"::error::vLLM benchmark failed for concurrency {c}: {e}")
+
+    return all_results
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -123,6 +180,7 @@ async def main():
     parser.add_argument("--url", help="Override API URL")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16])
     parser.add_argument("--requests-per-level", type=int, default=10)
+    parser.add_argument("--method", choices=["legacy", "vllm"], default="vllm", help="Benchmarking method")
     args = parser.parse_args()
 
     api_url = args.url
@@ -134,16 +192,20 @@ async def main():
             api_url = f.read().strip()
 
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
-    tester = LoadTester(api_url, args.model, vllm_api_key)
     all_results = []
 
-    log(f"Starting benchmark for {args.model}...")
-    for c in args.concurrency_levels:
-        log(f"  Concurrency {c}...")
-        res = await tester.run(c, args.requests_per_level)
-        if res:
-            all_results.append(res)
-            log(f"    TPS: {res['total_tps']:.2f}")
+    log(f"Starting benchmark for {args.model} using {args.method} method...")
+
+    if args.method == "vllm":
+        all_results = await run_vllm_benchmark(args, api_url)
+    else:
+        tester = LoadTester(api_url, args.model, vllm_api_key)
+        for c in args.concurrency_levels:
+            log(f"  Concurrency {c}...")
+            res = await tester.run(c, args.requests_per_level)
+            if res:
+                all_results.append(res)
+                log(f"    TPS: {res['total_tps']:.2f}")
 
     if all_results:
         summary_file = os.getenv("GITHUB_STEP_SUMMARY")
