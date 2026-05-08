@@ -44,12 +44,21 @@ jobs:
         # Use short interval for faster CI
         python poll.py --timeout 60 --interval 1
 
-        echo "--- Benchmark ---"
+        echo "--- Benchmark (LLMPerf) ---"
         python benchmark.py \
           --model tiny-model \
           --gpu mock-gpu \
           --concurrency-levels 1 2 \
-          --requests-per-level 5
+          --requests-per-level 5 \
+          --benchmark-type llmperf
+
+        echo "--- Benchmark (vLLM) ---"
+        python benchmark.py \
+          --model tiny-model \
+          --gpu mock-gpu \
+          --concurrency-levels 1 2 \
+          --requests-per-level 5 \
+          --benchmark-type vllm
 
         echo "--- Teardown ---"
         python teardown.py
