@@ -167,14 +167,15 @@ class VLLMServingTester:
             return None
 
         # Map back to our standard result format
+        valid_tps = [
+            tokens / lat for tokens, lat in zip(res["output_lens"], res["latencies"])
+            if lat > 0
+        ]
         return {
             "concurrency": concurrency,
             "success_rate": res["completed"] / num_requests,
             "avg_ttft": res["mean_ttft_ms"] / 1000.0,
-            # In LoadTester: avg_tps is mean of (tokens/duration) for each request.
-            # In vLLM: output_throughput is total_tokens / total_duration.
-            # Our 'total_tps' matches vLLM 'output_throughput' concept.
-            "avg_tps": res["output_throughput"] / concurrency if concurrency > 0 else 0,
+            "avg_tps": statistics.mean(valid_tps) if valid_tps else 0,
             "total_tps": res["output_throughput"]
         }
 

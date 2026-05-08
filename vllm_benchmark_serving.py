@@ -15,7 +15,7 @@ On the client side, run:
         --model <your_model> \
         --dataset-name sharegpt \
         --dataset-path <path to dataset> \
-        --request-rate <request_rate> \ # By default <request_rate> is inf
+        --request-rate <request_rate> \
         --num-prompts <num_prompts> # By default <num_prompts> is 1000
 
     when using tgi backend, add
@@ -448,6 +448,7 @@ async def benchmark(
         "output_throughput": metrics.output_throughput,
         "total_token_throughput": metrics.total_token_throughput,
         "input_lens": [output.prompt_len for output in outputs],
+        "latencies": [output.latency for output in outputs],
         "output_lens": actual_output_lens,
         "ttfts": [output.ttft for output in outputs],
         "itls": [output.itl for output in outputs],

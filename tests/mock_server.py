@@ -92,7 +92,7 @@ async def get_models(request):
                     "error": "The checkpoint you are trying to load has model type gemma4 but Transformers does not recognize this architecture."
                 }, status=500)
 
-    return web.json_response({"data": [{"id": "tiny-model"}]})
+    return web.json_response({"data": [{"id": "facebook/opt-125m"}, {"id": "tiny-model"}]})
 
 async def search_offers(request):
     # VastAI SDK POSTs to /api/v0/bundles/
