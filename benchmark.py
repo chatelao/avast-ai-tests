@@ -33,6 +33,8 @@ PROMPTS = [
     "What is the tallest mountain in the world?"
 ]
 
+MAX_RAY_ACTORS = 32
+
 def log(message, end="\n"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"[{timestamp}] {message}", end=end, flush=True)
@@ -133,7 +135,8 @@ class LLMPerfTester:
                 ignore_reinit_error=True,
                 runtime_env={"env_vars": {
                     "OPENAI_API_BASE": self.base_url,
-                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token"
+                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token",
+                    "RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO": "0"
                 }}
             )
 
@@ -143,7 +146,8 @@ class LLMPerfTester:
         from llmperf import common_metrics
 
         # Create a pool of actors to handle requests
-        clients = [OpenAIChatCompletionsClient.remote() for _ in range(concurrency)]
+        num_actors = min(concurrency, MAX_RAY_ACTORS)
+        clients = [OpenAIChatCompletionsClient.remote() for _ in range(num_actors)]
         client_pool = itertools.cycle(clients)
         semaphore = asyncio.Semaphore(concurrency)
 
