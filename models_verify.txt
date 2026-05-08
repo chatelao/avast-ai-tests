@@ -2,6 +2,7 @@ Qwen/Qwen-3.6-35B-A3B
 Qwen/Qwen2.5-Coder-32B-Instruct
 Qwen/Qwen3-235B-A22B
 Qwen/Qwen3-235B-A22B-Instruct-2507
+darkc0de/XortronCriminalComputingConfig
 deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct
 deepseek-ai/DeepSeek-R1
 deepseek-ai/DeepSeek-V3.2
@@ -20,6 +21,7 @@ mistralai/Codestral-2
 mistralai/Codestral-v0.2
 mistralai/Devstral-2-123B-Instruct
 mistralai/Devstral-2-123B-Instruct-2512
+mistralai/Magistral-Small-2509
 mistralai/Ministral-3-14B-Instruct-2512
 mistralai/Ministral-3-3B-Instruct-2512
 mistralai/Ministral-3-8B-Instruct-2512

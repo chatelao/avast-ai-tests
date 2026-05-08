@@ -48,6 +48,8 @@ on:
         - 'mistralai/Ministral-3-14B-Instruct-2512'
         - 'mistralai/Devstral-2-123B-Instruct-2512'
         - 'mistralai/Codestral-2'
+        - 'mistralai/Magistral-Small-2509'
+        - 'darkc0de/XortronCriminalComputingConfig'
         - 'Qwen/Qwen2.5-Coder-32B-Instruct'
         - 'deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct'
         - 'moonshotai/Kimi-K2.5'

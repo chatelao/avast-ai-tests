@@ -52,7 +52,9 @@ def estimate_model_params(model_name):
         "codestral": 22.0,           # Estimate based on v0.1
         "codestral-2": 22.0,
         "step-3.5-flash": 20.0,      # Verified count
-        "granite-4.0": 8.0           # Estimate for Granite-class
+        "granite-4.0": 8.0,          # Estimate for Granite-class
+        "magistral-small": 24.0,     # Verified count (24B)
+        "xortron": 24.0              # Verified count (24B)
     }
 
     for key, value in mappings.items():
@@ -78,7 +80,8 @@ def get_vllm_args(model, num_gpus, vllm_api_key):
     # New model families also often use custom architectures or are newer than the transformers version in default templates.
     models_trust_remote_code = [
         "gemma-4", "kimi", "qwen3", "qwen-3.6", "glm-4", "glm-5", "gpt-oss",
-        "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4"
+        "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4",
+        "magistral", "xortron"
     ]
     if any(m in model.lower() for m in models_trust_remote_code):
         vllm_args += " --trust-remote-code"

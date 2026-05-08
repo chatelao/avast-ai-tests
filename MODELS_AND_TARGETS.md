@@ -27,6 +27,7 @@ The recommendations are based on the following formulas used in `launch.py`:
 |  | `mistralai/Codestral-22B-v0.1` | 4x RTX 4090 or 1x A100 | 23 GB / 56 GB | 56 GB | Dense | - | High | High | |
 |  | `mistralai/Codestral-v0.2` | 4x RTX 4090 or 1x A100 | 23 GB / 56 GB | 56 GB | Dense | - | High | High | |
 |  | `mistralai/Codestral-2` | 4x RTX 4090 or 1x A100 | 23 GB / 56 GB | 56 GB | Dense | - | High++| High++| Standard Instruct & FIM |
+|  | `mistralai/Magistral-Small-2509` | 4x RTX 4090 or 1x A100 | 24 GB / 60 GB | 60 GB | Dense | - | High | High | Pixtral-based vision |
 | **Qwen** | `Qwen/Qwen2.5-Coder-32B-Instruct` | 1x A100 (80GB) | 76 GB | 76 GB | Dense | - | High++| High++| |
 |  | `Qwen/Qwen3-235B-A22B` | 8x A100 (80GB) | 71 GB | 482 GB | MoE | 64 | High | High | |
 |  | `Qwen/Qwen3-235B-A22B-Instruct-2507` | 8x A100 (80GB) | 71 GB | 482 GB | MoE | 64 | High | High | |
@@ -47,6 +48,7 @@ The recommendations are based on the following formulas used in `launch.py`:
 | **Small/Test** | `facebook/opt-125m` | 1x RTX 4090 / 3090 | 12 GB | 12 GB | Dense | - | N/A | N/A | |
 |  | `step-ai/Step-3.5-Flash` | 1x A100 (80GB) | 52 GB | 52 GB | Dense | - | Mid | Mid | MTP-3 |
 |  | `ibm/Granite-4.0-8B-Instruct` | 2x RTX 4090 or 1x A100 | 20 GB / 28 GB | 28 GB | Hybrid| - | Mid | Mid | Hybrid Mamba2 |
+| **Xortron** | `darkc0de/XortronCriminalComputingConfig` | 4x RTX 4090 or 1x A100 | 24 GB / 60 GB | 60 GB | Dense | - | High | High | Uncensored, Mistral-based |
 
 *\*Gemma 4 refers to specific experimental model variants supported in this benchmark suite.*
 
