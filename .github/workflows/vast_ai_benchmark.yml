@@ -78,11 +78,12 @@ on:
       benchmark_type:
         description: 'Benchmark engine to use'
         required: true
-        default: 'llmperf'
+        default: 'vllm'
         type: choice
         options:
         - 'llmperf'
         - 'vllm'
+        - 'legacy'
 
 jobs:
   benchmark:

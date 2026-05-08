@@ -3,3 +3,6 @@ aiohttp>=3.9.0
 requests>=2.31.0
 ray>=2.40.0
 llmperf @ git+https://github.com/ray-project/llmperf.git
+transformers
+numpy
+tqdm

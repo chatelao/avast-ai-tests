@@ -117,6 +117,67 @@ class LoadTester:
                 "total_tps": sum([r['tokens'] for r in valid]) / duration_run
             }
 
+class VLLMServingTester:
+    """Official vLLM benchmark implementation using modified benchmark_serving.py."""
+    def __init__(self, base_url, model_name, api_key=None):
+        self.base_url = base_url.rstrip('/')
+        self.model_name = model_name
+        self.api_key = api_key
+
+    async def run(self, concurrency, num_requests):
+        import vllm_benchmark_serving
+        from vllm_backend_request_func import get_tokenizer
+
+        tokenizer = get_tokenizer(self.model_name, trust_remote_code=True)
+        # Using a list of random prompts from the PROMPTS global
+        input_requests = []
+        for _ in range(num_requests):
+            prompt = random.choice(PROMPTS)
+            # Estimate token count (will be precisely counted by the script using tokenizer)
+            prompt_len = len(tokenizer.encode(prompt))
+            input_requests.append((prompt, prompt_len, 100)) # 100 max_tokens
+
+        api_url = f"{self.base_url}/v1/chat/completions"
+
+        # Mock the environment variable for API key as required by backend_request_func
+        if self.api_key:
+            os.environ["OPENAI_API_KEY"] = self.api_key
+
+        start_run = time.perf_counter()
+        # benchmark() returns a dict of metrics
+        res = await vllm_benchmark_serving.benchmark(
+            backend="openai-chat",
+            api_url=api_url,
+            base_url=self.base_url,
+            model_id=self.model_name,
+            tokenizer=tokenizer,
+            input_requests=input_requests,
+            best_of=1,
+            use_beam_search=False,
+            request_rate=float("inf"),
+            disable_tqdm=True,
+            profile=False,
+            selected_percentile_metrics=["ttft"],
+            selected_percentiles=[99.0],
+            concurrency=concurrency
+        )
+        duration_run = time.perf_counter() - start_run
+
+        if res["completed"] == 0:
+            return None
+
+        # Map back to our standard result format
+        return {
+            "concurrency": concurrency,
+            "success_rate": res["completed"] / num_requests,
+            "avg_ttft": res["mean_ttft_ms"] / 1000.0,
+            # In LoadTester: avg_tps is mean of (tokens/duration) for each request.
+            # In vLLM: output_throughput is total_tokens / total_duration.
+            # Our 'total_tps' matches vLLM 'output_throughput' concept.
+            "avg_tps": res["output_throughput"] / concurrency if concurrency > 0 else 0,
+            "total_tps": res["output_throughput"]
+        }
+
 class LLMPerfTester:
     """New benchmark implementation using the llmperf library actors."""
     def __init__(self, base_url, model_name, api_key=None):
@@ -198,8 +259,8 @@ async def main():
     parser.add_argument("--url", help="Override API URL")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16])
     parser.add_argument("--requests-per-level", type=int, default=10)
-    parser.add_argument("--benchmark-type", choices=["llmperf", "vllm"], default="llmperf",
-                        help="Benchmark engine to use (default: llmperf)")
+    parser.add_argument("--benchmark-type", choices=["llmperf", "vllm", "legacy"], default="vllm",
+                        help="Benchmark engine to use (default: vllm)")
     args = parser.parse_args()
 
     api_url = args.url
@@ -214,6 +275,8 @@ async def main():
 
     if args.benchmark_type == "llmperf":
         tester = LLMPerfTester(api_url, args.model, vllm_api_key)
+    elif args.benchmark_type == "vllm":
+        tester = VLLMServingTester(api_url, args.model, vllm_api_key)
     else:
         tester = LoadTester(api_url, args.model, vllm_api_key)
     all_results = []
