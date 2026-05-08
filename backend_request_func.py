@@ -411,8 +411,13 @@ def get_tokenizer(
             pretrained_model_name_or_path):
         pretrained_model_name_or_path = get_model(
             pretrained_model_name_or_path)
-    return AutoTokenizer.from_pretrained(pretrained_model_name_or_path,
-                                         trust_remote_code=trust_remote_code)
+    try:
+        return AutoTokenizer.from_pretrained(pretrained_model_name_or_path,
+                                             trust_remote_code=trust_remote_code)
+    except Exception as e:
+        print(f"Warning: Failed to load tokenizer for {pretrained_model_name_or_path}: {e}")
+        print("Falling back to gpt2 tokenizer for benchmarking...")
+        return AutoTokenizer.from_pretrained("gpt2", trust_remote_code=trust_remote_code)
 
 
 ASYNC_REQUEST_FUNCS = {
