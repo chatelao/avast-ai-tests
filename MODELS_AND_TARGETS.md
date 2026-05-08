@@ -20,23 +20,32 @@ The recommendations are based on the following formulas used in `launch.py`:
 |  | `google/gemma-4-26B-A4B-it` | 1x A100 (80GB) | 64 GB | 64 GB |
 |  | `google/gemma-4-31B-it` | 1x A100 (80GB) | 74 GB | 74 GB |
 | **Gemma 2** | `google/gemma-2-9b-it` | 2x RTX 4090 or 1x A100 | 21 GB (2x) / 30 GB (1x) | 30 GB |
-| **Mistral** | `mistralai/Mistral-Large-3-675B-Instruct-2512` | 8x B200 (192GB) | 181 GB | 1362 GB |
-|  | `mistralai/Mistral-Small-4-119B-2603` | 4x A100 (80GB) | 72 GB | 250 GB |
-|  | `mistralai/Mistral-Medium-3.5-128B` | 4x A100 (80GB) | 76 GB | 268 GB |
-|  | `mistralai/Ministral-3-14B-Instruct-2512` | 1x A100 (80GB) | 40 GB | 40 GB |
-|  | `mistralai/Ministral-3-8B-Instruct-2512` | 2x RTX 4090 or 1x A100 | 20 GB (2x) / 28 GB (1x) | 28 GB |
-|  | `mistralai/Ministral-3-3B-Instruct-2512` | 1x RTX 4090 | 18 GB | 18 GB |
-|  | `mistralai/Devstral-2-123B-Instruct-2512` | 4x A100 (80GB) | 74 GB | 258 GB |
+| **Mistral** | `mistralai/Mistral-Small-Instruct-2409` | 4x RTX 4090 or 1x A100 | 23 GB (4x) / 56 GB (1x) | 56 GB |
+|  | `mistralai/Mistral-Large-Instruct-2411` | 4x A100 (80GB) / H100 | 74 GB | 258 GB |
+|  | `mistralai/Devstral-2-123B-Instruct` | 4x A100 (80GB) / H100 | 74 GB | 258 GB |
+|  | `mistralai/Mistral-Medium-3.5-128B` | 4x A100 (80GB) / H100 | 76 GB | 268 GB |
+|  | `mistralai/Codestral-22B-v0.1` | 4x RTX 4090 or 1x A100 | 23 GB (4x) / 56 GB (1x) | 56 GB |
+|  | `mistralai/Codestral-v0.2` | 4x RTX 4090 or 1x A100 | 23 GB (4x) / 56 GB (1x) | 56 GB |
 | **Qwen** | `Qwen/Qwen2.5-Coder-32B-Instruct` | 1x A100 (80GB) | 76 GB | 76 GB |
 |  | `Qwen/Qwen3-235B-A22B` | 8x A100 (80GB) | 71 GB | 482 GB |
 |  | `Qwen/Qwen3-235B-A22B-Instruct-2507` | 8x A100 (80GB) | 71 GB | 482 GB |
+|  | `Qwen/Qwen-3.6-35B-A3B` | 1x A100 (80GB) | 82 GB | 82 GB |
 | **DeepSeek** | `deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct` | 4x RTX 4090 or 1x A100 | 20 GB (4x) / 44 GB (1x) | 44 GB |
+|  | `deepseek-ai/DeepSeek-V4-Flash` | 1x A100 (80GB) | 40 GB | 40 GB |
+|  | `deepseek-ai/DeepSeek-V4-Pro` | Multi-node / 8x H200 | 180 GB | 1354 GB |
+|  | `deepseek-ai/DeepSeek-V3.2` | Multi-node / 8x H200 | 180 GB | 1354 GB |
+|  | `deepseek-ai/DeepSeek-R1` | Multi-node / 8x H200 | 180 GB | 1354 GB |
 | **Kimi** | `moonshotai/Kimi-K2.5` | Requires Multi-node | 287 GB | 2212 GB |
+|  | `moonshotai/Kimi-K2.6` | Requires Multi-node | 262 GB | 2012 GB |
 | **Falcon** | `tiiuae/Falcon3-10B-Instruct` | 2x RTX 4090 or 1x A100 | 22 GB (2x) / 32 GB (1x) | 32 GB |
 | **Llama 4** | `meta-llama/Llama-4-Maverick-17B-128E-Instruct` | 8x H200 | 112 GB | 812 GB |
+|  | `meta-llama/Llama-4-Scout-400B-Instruct` | 8x H200 | 112 GB | 812 GB |
 | **GLM** | `zai-org/GLM-4.6` | 8x H200 | 101 GB | 726 GB |
+|  | `zai-org/GLM-5.1` | Multi-node / 8x H200 | 201 GB | 1520 GB |
 | **GPT-OSS** | `openai/gpt-oss-120b` | 4x A100 (80GB) / H100 | 70 GB | 246 GB |
 | **Small/Test** | `facebook/opt-125m` | 1x RTX 4090 / 3090 | 12 GB | 12 GB |
+|  | `step-ai/Step-3.5-Flash` | 2x RTX 4090 or 1x A100 | 20 GB (2x) / 28 GB (1x) | 28 GB |
+|  | `ibm/Granite-4.0-8B-Instruct` | 2x RTX 4090 or 1x A100 | 20 GB (2x) / 28 GB (1x) | 28 GB |
 
 *\*Gemma 4 refers to specific experimental model variants supported in this benchmark suite.*
 
