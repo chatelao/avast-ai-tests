@@ -9,6 +9,8 @@ import sys
 import datetime
 import random
 import itertools
+import numpy as np
+from transformers import AutoTokenizer
 
 PROMPTS = [
     "Explain quantum physics in one sentence.",
@@ -38,11 +40,17 @@ def log(message, end="\n"):
     print(f"[{timestamp}] {message}", end=end, flush=True)
 
 class LoadTester:
-    """Old vLLM benchmark implementation using aiohttp."""
+    """Enhanced vLLM benchmark implementation using aiohttp and transformers for accuracy."""
     def __init__(self, base_url, model_name, api_key=None):
         self.base_url = base_url.rstrip('/')
         self.model_name = model_name
         self.api_key = api_key
+        log(f"Loading tokenizer for {model_name}...")
+        try:
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        except Exception as e:
+            log(f"Warning: Could not load tokenizer for {model_name}, falling back to default. Error: {e}")
+            self.tokenizer = AutoTokenizer.from_pretrained("facebook/opt-125m")
 
     async def send_request(self, session, prompt):
         log(f" Sending request with prompt: {prompt[:50]}...")
@@ -61,7 +69,8 @@ class LoadTester:
         start_time = time.perf_counter()
         ttft = None
         tokens = 0
-        last_token_time = start_time
+        itls = []
+        last_token_time = None
 
         try:
             async with session.post(url, json=payload, headers=headers) as response:
@@ -75,21 +84,28 @@ class LoadTester:
                     if line.startswith("data: "):
                         if line == "data: [DONE]": break
 
+                        now = time.perf_counter()
                         # Only count as a token if it contains actual content
                         try:
                             content_json = json.loads(line[6:])
                             if content_json.get("choices") and content_json["choices"][0].get("delta", {}).get("content"):
                                 tokens += 1
+                                if ttft is None:
+                                    ttft = now - start_time
+                                elif last_token_time:
+                                    itls.append(now - last_token_time)
+                                last_token_time = now
                         except json.JSONDecodeError:
-                            # Fallback if JSON parsing fails but it's a data line
-                            tokens += 1
-
-                        now = time.perf_counter()
-                        if ttft is None: ttft = now - start_time
-                        last_token_time = now
+                            pass
 
             duration = time.perf_counter() - start_time
-            return {"ttft": ttft, "tokens": tokens, "duration": duration}
+            return {
+                "ttft": ttft,
+                "tokens": tokens,
+                "duration": duration,
+                "itls": itls,
+                "tpot": (duration - ttft) / (tokens - 1) if tokens > 1 else 0
+            }
         except Exception as e:
             log(f"::error::Exception during request: {type(e).__name__}: {e}")
             return None
@@ -106,14 +122,22 @@ class LoadTester:
             start_run = time.perf_counter()
             results = await asyncio.gather(*(worker() for _ in range(num_requests)))
             duration_run = time.perf_counter() - start_run
-            valid = [r for r in results if r]
+            valid = [r for r in results if r and r['tokens'] > 0]
             if not valid: return None
+
+            ttfts = [r['ttft'] for r in valid]
+            tpots = [r['tpot'] for r in valid if r['tpot'] > 0]
+            itls = []
+            for r in valid: itls.extend(r['itls'])
 
             return {
                 "concurrency": concurrency,
                 "success_rate": len(valid) / num_requests,
-                "avg_ttft": statistics.mean([r['ttft'] for r in valid]),
-                "avg_tps": statistics.mean([r['tokens']/r['duration'] for r in valid]),
+                "avg_ttft": np.mean(ttfts),
+                "p99_ttft": np.percentile(ttfts, 99),
+                "avg_tpot": np.mean(tpots) if tpots else 0,
+                "avg_itl": np.mean(itls) if itls else 0,
+                "avg_tps": np.mean([r['tokens']/r['duration'] for r in valid]),
                 "total_tps": sum([r['tokens'] for r in valid]) / duration_run
             }
 
@@ -133,7 +157,8 @@ class LLMPerfTester:
                 ignore_reinit_error=True,
                 runtime_env={"env_vars": {
                     "OPENAI_API_BASE": self.base_url,
-                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token"
+                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token",
+                    "RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO": "0"
                 }}
             )
 
@@ -190,6 +215,49 @@ class LLMPerfTester:
             "total_tps": sum([r[common_metrics.NUM_OUTPUT_TOKENS] for r in valid]) / duration_run
         }
 
+async def run_benchmark(tester, concurrency_levels, requests_per_level, model_name):
+    all_results = []
+    log(f"Starting benchmark for {model_name}...")
+    for c in concurrency_levels:
+        log(f"  Concurrency {c}...")
+        # Use more requests for higher concurrency to get better stats
+        num_reqs = max(c, requests_per_level)
+        res = await tester.run(c, num_reqs)
+        if res:
+            all_results.append(res)
+            log(f"    TPS: {res['total_tps']:.2f} (Success: {res['success_rate']*100:.1f}%)")
+    return all_results
+
+def report_results(all_results, model_name, gpu_name, num_gpus):
+    if not all_results:
+        log("::error::No results collected.")
+        return False
+
+    summary_file = os.getenv("GITHUB_STEP_SUMMARY")
+    if summary_file:
+        with open(summary_file, "a") as f:
+            f.write(f"## Results: {model_name} on {num_gpus}x {gpu_name}\n")
+            f.write("| C | Success Rate | Avg TTFT | P99 TTFT | Avg ITL | Total TPS |\n|---|---|---|---|---|---|\n")
+            for r in all_results:
+                p99_ttft = r.get('p99_ttft', 0)
+                avg_itl = r.get('avg_itl', 0)
+                f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {p99_ttft:.3f} | {avg_itl*1000:.1f}ms | {r['total_tps']:.2f} |\n")
+        log(f"Summary written to {summary_file}")
+
+    gpu_str = f"{num_gpus}x_{gpu_name.replace(' ', '_')}"
+    timestamp = int(time.time())
+    output_file = f"benchmark_{gpu_str}_{timestamp}.json"
+
+    with open(output_file, "w") as f:
+        json.dump(all_results, f, indent=2)
+    log(f"Results written to {output_file}")
+
+    # Also write to a fixed name for easier artifact collection
+    with open("results.json", "w") as f:
+        json.dump(all_results, f, indent=2)
+
+    return True
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -216,36 +284,11 @@ async def main():
         tester = LLMPerfTester(api_url, args.model, vllm_api_key)
     else:
         tester = LoadTester(api_url, args.model, vllm_api_key)
-    all_results = []
 
-    log(f"Starting benchmark for {args.model}...")
-    for c in args.concurrency_levels:
-        log(f"  Concurrency {c}...")
-        res = await tester.run(c, args.requests_per_level)
-        if res:
-            all_results.append(res)
-            log(f"    TPS: {res['total_tps']:.2f}")
+    all_results = await run_benchmark(tester, args.concurrency_levels, args.requests_per_level, args.model)
+    success = report_results(all_results, args.model, args.gpu, args.num_gpus)
 
-    if all_results:
-        summary_file = os.getenv("GITHUB_STEP_SUMMARY")
-        if summary_file:
-            with open(summary_file, "a") as f:
-                f.write(f"## Results: {args.model} on {args.num_gpus}x {args.gpu}\n")
-                f.write("| C | Success Rate | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|---|\n")
-                for r in all_results:
-                    f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
-            log(f"Summary written to {summary_file}")
-
-        gpu_str = f"{args.num_gpus}x_{args.gpu.replace(' ', '_')}"
-        output_file = f"benchmark_{gpu_str}_{int(time.time())}.json"
-        with open(output_file, "w") as f:
-            json.dump(all_results, f, indent=2)
-        log(f"Results written to {output_file}")
-        with open("results.json", "w") as f:
-            json.dump(all_results, f, indent=2)
-        log(f"Results written to results.json")
-    else:
-        log("::error::No results collected. Exiting with failure.")
+    if not success:
         sys.exit(1)
 
 if __name__ == "__main__":
