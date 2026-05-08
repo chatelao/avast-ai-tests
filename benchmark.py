@@ -196,7 +196,7 @@ async def main():
     parser.add_argument("--gpu", default="RTX_4090")
     parser.add_argument("--num-gpus", type=int, default=1)
     parser.add_argument("--url", help="Override API URL")
-    parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16])
+    parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16, 64, 256, 1024, 4096])
     parser.add_argument("--requests-per-level", type=int, default=10)
     parser.add_argument("--benchmark-type", choices=["llmperf", "vllm"], default="llmperf",
                         help="Benchmark engine to use (default: llmperf)")
