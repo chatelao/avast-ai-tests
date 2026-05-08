@@ -17,9 +17,19 @@ def estimate_model_params(model_name):
     model_name_lower = model_name.lower()
 
     # Explicit mappings for models without size in name
-    if "mistral-small" in model_name_lower:
-        return 22.0
-    if "mistral-large" in model_name_lower:
+    if "mistral-large-3-675b" in model_name_lower:
+        return 675.0
+    if "mistral-small-4-119b" in model_name_lower:
+        return 119.0
+    if "mistral-medium-3.5-128b" in model_name_lower:
+        return 128.0
+    if "ministral-3-3b" in model_name_lower:
+        return 3.0
+    if "ministral-3-8b" in model_name_lower:
+        return 8.0
+    if "ministral-3-14b" in model_name_lower:
+        return 14.0
+    if "devstral-2-123b" in model_name_lower:
         return 123.0
     if "deepseek-coder-v2-lite" in model_name_lower:
         return 16.0
@@ -63,7 +73,7 @@ def get_vllm_args(model, num_gpus, vllm_api_key):
 
     # Gemma 4 models require --trust-remote-code because the architecture is often newer than the transformers version in the template.
     # New model families also often use custom architectures or are newer than the transformers version in default templates.
-    models_trust_remote_code = ["gemma-4", "kimi", "qwen3", "glm-4", "gpt-oss"]
+    models_trust_remote_code = ["gemma-4", "kimi", "qwen3", "glm-4", "gpt-oss", "mistral", "ministral", "devstral"]
     if any(m in model.lower() for m in models_trust_remote_code):
         vllm_args += " --trust-remote-code"
 

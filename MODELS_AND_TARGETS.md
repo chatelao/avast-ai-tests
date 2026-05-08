@@ -20,9 +20,13 @@ The recommendations are based on the following formulas used in `launch.py`:
 |  | `google/gemma-4-26B-A4B-it` | 1x A100 (80GB) | 64 GB | 64 GB |
 |  | `google/gemma-4-31B-it` | 1x A100 (80GB) | 74 GB | 74 GB |
 | **Gemma 2** | `google/gemma-2-9b-it` | 2x RTX 4090 or 1x A100 | 21 GB (2x) / 30 GB (1x) | 30 GB |
-| **Mistral** | `mistralai/Mistral-Small-Instruct-2409` | 4x RTX 4090 or 1x A100 | 23 GB (4x) / 56 GB (1x) | 56 GB |
-|  | `mistralai/Mistral-Large-Instruct-2411` | 4x A100 (80GB) / H100 | 74 GB | 258 GB |
-|  | `mistralai/Codestral-22B-v0.1` | 4x RTX 4090 or 1x A100 | 23 GB (4x) / 56 GB (1x) | 56 GB |
+| **Mistral** | `mistralai/Mistral-Large-3-675B-Instruct-2512` | 8x B200 (192GB) | 181 GB | 1362 GB |
+|  | `mistralai/Mistral-Small-4-119B-2603` | 4x A100 (80GB) | 72 GB | 250 GB |
+|  | `mistralai/Mistral-Medium-3.5-128B` | 4x A100 (80GB) | 76 GB | 268 GB |
+|  | `mistralai/Ministral-3-14B-Instruct-2512` | 1x A100 (80GB) | 40 GB | 40 GB |
+|  | `mistralai/Ministral-3-8B-Instruct-2512` | 2x RTX 4090 or 1x A100 | 20 GB (2x) / 28 GB (1x) | 28 GB |
+|  | `mistralai/Ministral-3-3B-Instruct-2512` | 1x RTX 4090 | 18 GB | 18 GB |
+|  | `mistralai/Devstral-2-123B-Instruct-2512` | 4x A100 (80GB) | 74 GB | 258 GB |
 | **Qwen** | `Qwen/Qwen2.5-Coder-32B-Instruct` | 1x A100 (80GB) | 76 GB | 76 GB |
 |  | `Qwen/Qwen3-235B-A22B` | 8x A100 (80GB) | 71 GB | 482 GB |
 |  | `Qwen/Qwen3-235B-A22B-Instruct-2507` | 8x A100 (80GB) | 71 GB | 482 GB |
