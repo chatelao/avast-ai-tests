@@ -6,7 +6,7 @@ This document provides recommendations for matching LLM models with appropriate 
 
 The recommendations are based on the following formulas used in `launch.py`:
 - **Model Weight Size (GB):** `Parameters (Billion) * 2` (assuming BF16/FP16).
-- **Required VRAM per GPU (GB):** `(Model Size / Number of GPUs) + 12GB Buffer`.
+- **Required VRAM per GPU (GB):** `(Model Size / Number of GPUs) * 1.1 + 2GB Buffer`.
 - **Required Disk Space (GB):** `Model Size + 12GB Buffer`.
 
 ## Recommendations Table

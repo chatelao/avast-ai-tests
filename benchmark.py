@@ -105,6 +105,8 @@ class LoadTester:
             return None
 
     async def run(self, concurrency, num_requests):
+        # Ensure we run at least as many requests as the concurrency level
+        num_requests = max(num_requests, concurrency)
         semaphore = asyncio.Semaphore(concurrency)
         connector = aiohttp.TCPConnector(limit=0)
         async with aiohttp.ClientSession(connector=connector) as session:
@@ -153,6 +155,9 @@ class LLMPerfTester:
         from llmperf.ray_clients.openai_chat_completions_client import OpenAIChatCompletionsClient
         from llmperf.models import RequestConfig
         from llmperf import common_metrics
+
+        # Ensure we run at least as many requests as the concurrency level
+        num_requests = max(num_requests, concurrency)
 
         # Create a pool of actors to handle requests.
         # Cap at 32 actors to avoid "too many worker processes" and Ray resource exhaustion.
@@ -303,16 +308,20 @@ async def run_remote(args):
     # 4. Download results
     log("Downloading results from instance...")
     # Download the whole results directory
+    # vastai copy remote:dir local:path copies the directory INTO the local path.
+    # So results_remote/ becomes ./results_remote/
     sdk.copy(f"{instance_id}:results_remote/", "local:.")
 
-    # After copying, the files from results_remote/ should be in the local current dir
-    # because of how vastai copy works (it's like scp -r).
-    # Wait, scp -r remote:dir/ local:target/ copies contents of dir into target.
-
-    local_results = "results.json"
+    local_results = os.path.join("results_remote", "results.json")
     if os.path.exists(local_results):
         with open(local_results, "r") as f:
             return json.load(f)
+
+    # Fallback to local root if it was somehow copied there
+    if os.path.exists("results.json"):
+        with open("results.json", "r") as f:
+            return json.load(f)
+
     return None
 
 async def main():
