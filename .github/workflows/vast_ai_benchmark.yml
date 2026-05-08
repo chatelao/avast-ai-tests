@@ -64,6 +64,7 @@ on:
         - 'deepseek-ai/DeepSeek-V3.2'
         - 'deepseek-ai/DeepSeek-R1'
         - 'meta-llama/Llama-4-Scout-400B-Instruct'
+        - 'microsoft/phi-4'
         - 'mistralai/Devstral-2-123B-Instruct'
         - 'mistralai/Codestral-v0.2'
         - 'Qwen/Qwen-3.6-35B-A3B'

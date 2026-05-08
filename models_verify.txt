@@ -17,6 +17,7 @@ google/gemma-4-E4B-it
 ibm/Granite-4.0-8B-Instruct
 meta-llama/Llama-4-Maverick-17B-128E-Instruct
 meta-llama/Llama-4-Scout-400B-Instruct
+microsoft/phi-4
 mistralai/Codestral-2
 mistralai/Codestral-v0.2
 mistralai/Devstral-2-123B-Instruct

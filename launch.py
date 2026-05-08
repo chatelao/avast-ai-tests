@@ -56,6 +56,7 @@ def estimate_model_params(model_name):
         "granite-4.0": 8.0,          # Estimate for Granite-class
         "magistral-small": 24.0,     # Verified count (24B)
         "xortron": 24.0,             # Verified count (24B)
+        "phi-4": 14.7,               # Verified count (14.7B)
         "opt-125m": 0.125            # Specific mapping for tests
     }
 
@@ -83,7 +84,7 @@ def get_vllm_args(model, num_gpus, vllm_api_key):
     models_trust_remote_code = [
         "gemma-4", "kimi", "qwen3", "qwen-3.6", "glm-4", "glm-5", "gpt-oss",
         "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4",
-        "magistral", "xortron"
+        "magistral", "xortron", "phi"
     ]
     if any(m in model.lower() for m in models_trust_remote_code):
         vllm_args += " --trust-remote-code"

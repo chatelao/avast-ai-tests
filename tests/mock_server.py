@@ -90,7 +90,7 @@ async def get_models(request):
 
             models_trust_remote_code = [
                 "gemma-4", "kimi", "qwen3", "qwen-3.6", "glm-4", "glm-5", "gpt-oss",
-                "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4"
+                "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4", "phi"
             ]
 
             if any(m in model for m in models_trust_remote_code) and "--trust-remote-code" not in args:

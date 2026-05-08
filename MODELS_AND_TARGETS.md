@@ -40,6 +40,7 @@ The recommendations are based on the following formulas used in `launch.py`:
 | **Kimi** | `moonshotai/Kimi-K2.5` | Requires Multi-node | 287 GB | 2212 GB| MoE | 128 | High | High | |
 |  | `moonshotai/Kimi-K2.6` | Requires Multi-node | 262 GB | 2012 GB| MoE | 256 | High++| High++| Agentic Swarm |
 | **Falcon** | `tiiuae/Falcon3-10B-Instruct` | 2x RTX 4090 or 1x A100 | 22 GB / 32 GB | 32 GB | Dense | - | Mid | Mid | |
+| **Phi** | `microsoft/phi-4` | 2x RTX 4090 or 1x A100 | 19 GB / 35 GB | 42 GB | Dense | - | High | High | |
 | **Llama 4** | `meta-llama/Llama-4-Maverick-17B-128E-Instruct`| 8x H200 | 112 GB | 812 GB | MoE | 128 | High | High | |
 |  | `meta-llama/Llama-4-Scout-400B-Instruct` | 8x H200 | 112 GB | 812 GB | MoE | 256 | High++| High++| 10M Kontext, NoPE |
 | **GLM** | `zai-org/GLM-4.6` | 8x H200 | 101 GB | 726 GB | MoE | 64 | High | High | |
