@@ -61,7 +61,8 @@ class LoadTester:
         start_time = time.perf_counter()
         ttft = None
         tokens = 0
-        last_token_time = start_time
+        token_latencies = []
+        last_token_time = None
 
         try:
             async with session.post(url, json=payload, headers=headers) as response:
@@ -75,21 +76,29 @@ class LoadTester:
                     if line.startswith("data: "):
                         if line == "data: [DONE]": break
 
+                        now = time.perf_counter()
                         # Only count as a token if it contains actual content
+                        is_token = False
                         try:
                             content_json = json.loads(line[6:])
                             if content_json.get("choices") and content_json["choices"][0].get("delta", {}).get("content"):
                                 tokens += 1
+                                is_token = True
                         except json.JSONDecodeError:
                             # Fallback if JSON parsing fails but it's a data line
                             tokens += 1
+                            is_token = True
 
-                        now = time.perf_counter()
-                        if ttft is None: ttft = now - start_time
-                        last_token_time = now
+                        if is_token:
+                            if ttft is None:
+                                ttft = now - start_time
+                            else:
+                                token_latencies.append(now - last_token_time)
+                            last_token_time = now
 
             duration = time.perf_counter() - start_time
-            return {"ttft": ttft, "tokens": tokens, "duration": duration}
+            itl = statistics.mean(token_latencies) if token_latencies else 0
+            return {"ttft": ttft, "tokens": tokens, "duration": duration, "itl": itl}
         except Exception as e:
             log(f"::error::Exception during request: {type(e).__name__}: {e}")
             return None
@@ -113,6 +122,7 @@ class LoadTester:
                 "concurrency": concurrency,
                 "success_rate": len(valid) / num_requests,
                 "avg_ttft": statistics.mean([r['ttft'] for r in valid]),
+                "avg_itl": statistics.mean([r['itl'] for r in valid]),
                 "avg_tps": statistics.mean([r['tokens']/r['duration'] for r in valid]),
                 "total_tps": sum([r['tokens'] for r in valid]) / duration_run
             }
@@ -191,6 +201,7 @@ class LLMPerfTester:
             "concurrency": concurrency,
             "success_rate": len(valid) / num_requests,
             "avg_ttft": statistics.mean([r[common_metrics.TTFT] for r in valid]),
+            "avg_itl": statistics.mean([r[common_metrics.INTER_TOKEN_LAT] for r in valid]),
             "avg_tps": statistics.mean([r[common_metrics.REQ_OUTPUT_THROUGHPUT] for r in valid]),
             "total_tps": sum([r[common_metrics.NUM_OUTPUT_TOKENS] for r in valid]) / duration_run
         }
@@ -225,8 +236,9 @@ async def main():
 
     log(f"Starting benchmark for {args.model}...")
     for c in args.concurrency_levels:
-        log(f"  Concurrency {c}...")
-        res = await tester.run(c, args.requests_per_level)
+        num_reqs = max(c, args.requests_per_level)
+        log(f"  Concurrency {c} ({num_reqs} requests)...")
+        res = await tester.run(c, num_reqs)
         if res:
             all_results.append(res)
             log(f"    TPS: {res['total_tps']:.2f}")
@@ -236,9 +248,9 @@ async def main():
         if summary_file:
             with open(summary_file, "a") as f:
                 f.write(f"## Results: {args.model} on {args.num_gpus}x {args.gpu}\n")
-                f.write("| C | Success Rate | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|---|\n")
+                f.write("| C | Success Rate | Avg TTFT | Avg ITL | Avg TPS | Total TPS |\n|---|---|---|---|---|---|\n")
                 for r in all_results:
-                    f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
+                    f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_itl']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
             log(f"Summary written to {summary_file}")
 
         gpu_str = f"{args.num_gpus}x_{args.gpu.replace(' ', '_')}"
