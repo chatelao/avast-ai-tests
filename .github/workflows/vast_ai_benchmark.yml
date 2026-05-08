@@ -56,6 +56,17 @@ on:
         - 'zai-org/GLM-4.6'
         - 'openai/gpt-oss-120b'
         - 'Qwen/Qwen3-235B-A22B-Instruct-2507'
+        - 'deepseek-ai/DeepSeek-V4-Flash'
+        - 'deepseek-ai/DeepSeek-V4-Pro'
+        - 'deepseek-ai/DeepSeek-V3.2'
+        - 'deepseek-ai/DeepSeek-R1'
+        - 'meta-llama/Llama-4-Scout'
+        - 'mistralai/Codestral-2'
+        - 'Qwen/Qwen-3.6-35B-A3B'
+        - 'zai-org/GLM-5.1'
+        - 'moonshotai/Kimi-K2.6'
+        - 'step-ai/Step-3.5-Flash'
+        - 'ibm-granite/granite-4.0-8b-instruct'
       concurrency_levels:
         description: 'Space-separated concurrency levels'
         required: true

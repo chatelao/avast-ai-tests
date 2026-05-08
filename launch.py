@@ -45,6 +45,28 @@ def estimate_model_params(model_name):
         return 357.0
     if "gpt-oss-120b" in model_name_lower:
         return 117.0
+    if "deepseek-v4-flash" in model_name_lower:
+        return 284.0
+    if "deepseek-v4-pro" in model_name_lower:
+        return 1600.0
+    if "deepseek-v3.2" in model_name_lower:
+        return 671.0
+    if "deepseek-r1" in model_name_lower:
+        return 671.0
+    if "llama-4-scout" in model_name_lower:
+        return 400.0
+    if "codestral-2" in model_name_lower:
+        return 22.0
+    if "qwen-3.6-35b-a3b" in model_name_lower:
+        return 35.0
+    if "glm-5.1" in model_name_lower:
+        return 754.0
+    if "kimi-k2.6" in model_name_lower:
+        return 1000.0
+    if "step-3.5-flash" in model_name_lower:
+        return 20.0
+    if "granite-4.0" in model_name_lower:
+        return 8.0
 
     # Regex to find patterns like 7b, 125m, 0.5b
     match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])", model_name_lower)
@@ -73,7 +95,7 @@ def get_vllm_args(model, num_gpus, vllm_api_key):
 
     # Gemma 4 models require --trust-remote-code because the architecture is often newer than the transformers version in the template.
     # New model families also often use custom architectures or are newer than the transformers version in default templates.
-    models_trust_remote_code = ["gemma-4", "kimi", "qwen3", "glm-4", "gpt-oss", "mistral", "ministral", "devstral"]
+    models_trust_remote_code = ["gemma-4", "kimi", "qwen", "glm", "gpt-oss", "mistral", "ministral", "devstral", "deepseek", "step", "granite", "codestral"]
     if any(m in model.lower() for m in models_trust_remote_code):
         vllm_args += " --trust-remote-code"
 
