@@ -102,6 +102,11 @@ on:
         options:
         - 'llmperf'
         - 'vllm'
+      run_remote:
+        description: 'Run benchmark remote on the Vast.ai VM'
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   benchmark:
@@ -140,14 +145,21 @@ jobs:
         python poll.py
 
     - name: Benchmark
+      env:
+        VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
       run: |
+        REMOTE_FLAG=""
+        if [ "${{ github.event.inputs.run_remote }}" = "true" ]; then
+          REMOTE_FLAG="--remote"
+        fi
         python benchmark.py \
           --gpu "${{ github.event.inputs.gpu }}" \
           --num-gpus "${{ github.event.inputs.num_gpus }}" \
           --model "${{ github.event.inputs.model }}" \
           --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
           --requests-per-level ${{ github.event.inputs.requests_per_level }} \
-          --benchmark-type "${{ github.event.inputs.benchmark_type }}"
+          --benchmark-type "${{ github.event.inputs.benchmark_type }}" \
+          $REMOTE_FLAG
 
     - name: Teardown
       if: always()
