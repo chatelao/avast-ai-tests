@@ -75,6 +75,14 @@ on:
         description: 'Disk size in GB'
         required: true
         default: '40'
+      benchmark_type:
+        description: 'Benchmark engine to use'
+        required: true
+        default: 'llmperf'
+        type: choice
+        options:
+        - 'llmperf'
+        - 'vllm'
 
 jobs:
   benchmark:
@@ -119,7 +127,8 @@ jobs:
           --num-gpus "${{ github.event.inputs.num_gpus }}" \
           --model "${{ github.event.inputs.model }}" \
           --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
-          --requests-per-level ${{ github.event.inputs.requests_per_level }}
+          --requests-per-level ${{ github.event.inputs.requests_per_level }} \
+          --benchmark-type "${{ github.event.inputs.benchmark_type }}"
 
     - name: Teardown
       if: always()

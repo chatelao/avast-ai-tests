@@ -8,6 +8,7 @@ import argparse
 import sys
 import datetime
 import random
+import itertools
 
 PROMPTS = [
     "Explain quantum physics in one sentence.",
@@ -37,6 +38,7 @@ def log(message, end="\n"):
     print(f"[{timestamp}] {message}", end=end, flush=True)
 
 class LoadTester:
+    """Old vLLM benchmark implementation using aiohttp."""
     def __init__(self, base_url, model_name, api_key=None):
         self.base_url = base_url.rstrip('/')
         self.model_name = model_name
@@ -115,6 +117,79 @@ class LoadTester:
                 "total_tps": sum([r['tokens'] for r in valid]) / duration_run
             }
 
+class LLMPerfTester:
+    """New benchmark implementation using the llmperf library actors."""
+    def __init__(self, base_url, model_name, api_key=None):
+        self.base_url = base_url.rstrip('/')
+        if not self.base_url.endswith("/v1"):
+            self.base_url += "/v1"
+        self.model_name = model_name
+        self.api_key = api_key
+
+        import ray
+        if not ray.is_initialized():
+            log(f"Initializing Ray with OPENAI_API_BASE={self.base_url}")
+            ray.init(
+                ignore_reinit_error=True,
+                runtime_env={"env_vars": {
+                    "OPENAI_API_BASE": self.base_url,
+                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token"
+                }}
+            )
+
+    async def run(self, concurrency, num_requests):
+        from llmperf.ray_clients.openai_chat_completions_client import OpenAIChatCompletionsClient
+        from llmperf.models import RequestConfig
+        from llmperf import common_metrics
+
+        # Create a pool of actors to handle requests
+        clients = [OpenAIChatCompletionsClient.remote() for _ in range(concurrency)]
+        client_pool = itertools.cycle(clients)
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def worker():
+            async with semaphore:
+                client = next(client_pool)
+                prompt_text = random.choice(PROMPTS)
+                # LLMPerf expects prompt as (text, token_count)
+                # Using a simple split for token count estimation
+                prompt = (prompt_text, len(prompt_text.split()))
+                request_config = RequestConfig(
+                    model=self.model_name,
+                    prompt=prompt,
+                    sampling_params={"max_tokens": 100}
+                )
+                # Ray method calls return ObjectRefs which are awaitable
+                try:
+                    return await client.llm_request.remote(request_config)
+                except Exception as e:
+                    log(f"::error::LLMPerf request failed: {e}")
+                    return None
+
+        start_run = time.perf_counter()
+        results = await asyncio.gather(*(worker() for _ in range(num_requests)))
+        duration_run = time.perf_counter() - start_run
+
+        # Shutdown actors to free up resources
+        import ray
+        for client in clients:
+            ray.kill(client)
+
+        # results is a list of (metrics, generated_text, request_config) tuples
+        valid = [r[0] for r in results if r and r[0].get(common_metrics.ERROR_CODE) is None]
+
+        if not valid:
+            log(f"::error::All {num_requests} requests failed with LLMPerf")
+            return None
+
+        return {
+            "concurrency": concurrency,
+            "success_rate": len(valid) / num_requests,
+            "avg_ttft": statistics.mean([r[common_metrics.TTFT] for r in valid]),
+            "avg_tps": statistics.mean([r[common_metrics.REQ_OUTPUT_THROUGHPUT] for r in valid]),
+            "total_tps": sum([r[common_metrics.NUM_OUTPUT_TOKENS] for r in valid]) / duration_run
+        }
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -123,6 +198,8 @@ async def main():
     parser.add_argument("--url", help="Override API URL")
     parser.add_argument("--concurrency-levels", type=int, nargs="+", default=[1, 4, 16])
     parser.add_argument("--requests-per-level", type=int, default=10)
+    parser.add_argument("--benchmark-type", choices=["llmperf", "vllm"], default="llmperf",
+                        help="Benchmark engine to use (default: llmperf)")
     args = parser.parse_args()
 
     api_url = args.url
@@ -134,7 +211,11 @@ async def main():
             api_url = f.read().strip()
 
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
-    tester = LoadTester(api_url, args.model, vllm_api_key)
+
+    if args.benchmark_type == "llmperf":
+        tester = LLMPerfTester(api_url, args.model, vllm_api_key)
+    else:
+        tester = LoadTester(api_url, args.model, vllm_api_key)
     all_results = []
 
     log(f"Starting benchmark for {args.model}...")
