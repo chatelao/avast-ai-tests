@@ -27,6 +27,8 @@ The recommendations are based on the following formulas used in `launch.py`:
 |  | `Qwen/Qwen3-235B-A22B` | 8x A100 (80GB) | 71 GB | 482 GB |
 |  | `Qwen/Qwen3-235B-A22B-Instruct-2507` | 8x A100 (80GB) | 71 GB | 482 GB |
 | **DeepSeek** | `deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct` | 4x RTX 4090 or 1x A100 | 20 GB (4x) / 44 GB (1x) | 44 GB |
+|  | `deepseek-ai/DeepSeek-V4-Flash` | 8x H200 | 83 GB | 580 GB |
+|  | `deepseek-ai/DeepSeek-V4-Pro` | Requires Multi-node | 412 GB | 3212 GB |
 | **Kimi** | `moonshotai/Kimi-K2.5` | Requires Multi-node | 287 GB | 2212 GB |
 | **Falcon** | `tiiuae/Falcon3-10B-Instruct` | 2x RTX 4090 or 1x A100 | 22 GB (2x) / 32 GB (1x) | 32 GB |
 | **Llama 4** | `meta-llama/Llama-4-Maverick-17B-128E-Instruct` | 8x H200 | 112 GB | 812 GB |

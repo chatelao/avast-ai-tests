@@ -23,6 +23,10 @@ def estimate_model_params(model_name):
         return 123.0
     if "deepseek-coder-v2-lite" in model_name_lower:
         return 16.0
+    if "deepseek-v4-flash" in model_name_lower:
+        return 284.0
+    if "deepseek-v4-pro" in model_name_lower:
+        return 1600.0
     if "kimi-k2.5" in model_name_lower:
         return 1100.0
     if "falcon3-10b" in model_name_lower:
@@ -63,7 +67,7 @@ def get_vllm_args(model, num_gpus, vllm_api_key):
 
     # Gemma 4 models require --trust-remote-code because the architecture is often newer than the transformers version in the template.
     # New model families also often use custom architectures or are newer than the transformers version in default templates.
-    models_trust_remote_code = ["gemma-4", "kimi", "qwen3", "glm-4", "gpt-oss"]
+    models_trust_remote_code = ["gemma-4", "kimi", "qwen3", "glm-4", "gpt-oss", "deepseek-v4"]
     if any(m in model.lower() for m in models_trust_remote_code):
         vllm_args += " --trust-remote-code"
 

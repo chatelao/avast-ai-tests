@@ -44,6 +44,8 @@ on:
         - 'mistralai/Mistral-Large-Instruct-2411'
         - 'Qwen/Qwen2.5-Coder-32B-Instruct'
         - 'deepseek-ai/DeepSeek-Coder-V2-Lite-Instruct'
+        - 'deepseek-ai/DeepSeek-V4-Flash'
+        - 'deepseek-ai/DeepSeek-V4-Pro'
         - 'mistralai/Codestral-22B-v0.1'
         - 'moonshotai/Kimi-K2.5'
         - 'tiiuae/Falcon3-10B-Instruct'

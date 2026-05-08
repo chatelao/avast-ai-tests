@@ -9,6 +9,8 @@ def test_estimate_model_params_new_models():
     assert estimate_model_params("zai-org/GLM-4.6") == 357.0
     assert estimate_model_params("openai/gpt-oss-120b") == 117.0
     assert estimate_model_params("Qwen/Qwen3-235B-A22B-Instruct-2507") == 235.0
+    assert estimate_model_params("deepseek-ai/DeepSeek-V4-Flash") == 284.0
+    assert estimate_model_params("deepseek-ai/DeepSeek-V4-Pro") == 1600.0
 
 def test_estimate_model_params_existing_models():
     assert estimate_model_params("facebook/opt-125m") == 0.125
@@ -25,6 +27,8 @@ def test_get_vllm_args_trust_remote_code():
     assert "--trust-remote-code" in get_vllm_args("zai-org/GLM-4.6", 1, token)
     assert "--trust-remote-code" in get_vllm_args("openai/gpt-oss-120b", 1, token)
     assert "--trust-remote-code" in get_vllm_args("google/gemma-4-31B-it", 1, token)
+    assert "--trust-remote-code" in get_vllm_args("deepseek-ai/DeepSeek-V4-Flash", 1, token)
+    assert "--trust-remote-code" in get_vllm_args("deepseek-ai/DeepSeek-V4-Pro", 1, token)
 
     # Models that SHOULD NOT have the flag
     assert "--trust-remote-code" not in get_vllm_args("facebook/opt-125m", 1, token)
