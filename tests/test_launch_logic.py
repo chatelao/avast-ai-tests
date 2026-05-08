@@ -26,7 +26,13 @@ def test_estimate_model_params_new_models():
 def test_estimate_model_params_existing_models():
     assert estimate_model_params("facebook/opt-125m") == 0.125
     assert estimate_model_params("google/gemma-2-9b-it") == 9.0
-    assert estimate_model_params("mistralai/Mistral-Small-Instruct-2409") == 22.0
+    assert estimate_model_params("mistralai/Mistral-Large-3-675B-Instruct-2512") == 675.0
+    assert estimate_model_params("mistralai/Mistral-Small-4-119B-2603") == 119.0
+    assert estimate_model_params("mistralai/Mistral-Medium-3.5-128B") == 128.0
+    assert estimate_model_params("mistralai/Ministral-3-3B-Instruct-2512") == 3.0
+    assert estimate_model_params("mistralai/Ministral-3-8B-Instruct-2512") == 8.0
+    assert estimate_model_params("mistralai/Ministral-3-14B-Instruct-2512") == 14.0
+    assert estimate_model_params("mistralai/Devstral-2-123B-Instruct-2512") == 123.0
 
 from launch import get_vllm_args
 
@@ -42,9 +48,12 @@ def test_get_vllm_args_trust_remote_code():
     assert "--trust-remote-code" in get_vllm_args("openai/gpt-oss-120b", 1, token)
     assert "--trust-remote-code" in get_vllm_args("google/gemma-4-31B-it", 1, token)
     assert "--trust-remote-code" in get_vllm_args("deepseek-ai/DeepSeek-V4-Flash", 1, token)
-    assert "--trust-remote-code" in get_vllm_args("mistralai/Mistral-Medium-3.5-128B", 1, token)
     assert "--trust-remote-code" in get_vllm_args("step-ai/Step-3.5-Flash", 1, token)
     assert "--trust-remote-code" in get_vllm_args("ibm/Granite-4.0-8B-Instruct", 1, token)
+    assert "--trust-remote-code" in get_vllm_args("mistralai/Ministral-3-3B-Instruct-2512", 1, token)
+    assert "--trust-remote-code" in get_vllm_args("mistralai/Devstral-2-123B-Instruct-2512", 1, token)
+    assert "--trust-remote-code" in get_vllm_args("mistralai/Mistral-Small-4-119B-2603", 1, token)
+    assert "--trust-remote-code" in get_vllm_args("mistralai/Mistral-Medium-3.5-128B", 1, token)
 
     # Models that SHOULD NOT have the flag
     assert "--trust-remote-code" not in get_vllm_args("facebook/opt-125m", 1, token)
