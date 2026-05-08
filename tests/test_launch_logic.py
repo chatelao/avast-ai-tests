@@ -2,12 +2,14 @@ import pytest
 from launch import estimate_model_params
 
 def test_estimate_model_params_new_models():
+    assert estimate_model_params("google/gemma-4-E2B-it") == 2.0
+    assert estimate_model_params("google/gemma-4-26B-A4B-it") == 26.0
     assert estimate_model_params("moonshotai/Kimi-K2.5") == 1100.0
     assert estimate_model_params("tiiuae/Falcon3-10B-Instruct") == 10.0
-    assert estimate_model_params("meta-llama/Llama-4-Maverick-17B-128E-Instruct") == 400.0
+    assert estimate_model_params("meta-llama/Llama-4-Maverick-17B-128E-Instruct") == 17.0
     assert estimate_model_params("Qwen/Qwen3-235B-A22B") == 235.0
     assert estimate_model_params("zai-org/GLM-4.6") == 357.0
-    assert estimate_model_params("openai/gpt-oss-120b") == 117.0
+    assert estimate_model_params("openai/gpt-oss-120b") == 120.0
     assert estimate_model_params("Qwen/Qwen3-235B-A22B-Instruct-2507") == 235.0
     # Added in upgrade
     assert estimate_model_params("deepseek-ai/DeepSeek-V4-Flash") == 284.0
@@ -26,10 +28,10 @@ def test_estimate_model_params_new_models():
 def test_estimate_model_params_existing_models():
     assert estimate_model_params("facebook/opt-125m") == 0.125
     assert estimate_model_params("google/gemma-2-9b-it") == 9.0
-    # Mistral Large 3 is caught by "mistral-large" mapping which is 123.0
-    assert estimate_model_params("mistralai/Mistral-Large-3-675B-Instruct-2512") == 123.0
-    # Mistral Small 4 is caught by "mistral-small" mapping which is 22.0
-    assert estimate_model_params("mistralai/Mistral-Small-4-119B-2603") == 22.0
+    # Mistral Large 3 is caught by regex because of 675B
+    assert estimate_model_params("mistralai/Mistral-Large-3-675B-Instruct-2512") == 675.0
+    # Mistral Small 4 is caught by regex because of 119B
+    assert estimate_model_params("mistralai/Mistral-Small-4-119B-2603") == 119.0
     assert estimate_model_params("mistralai/Mistral-Medium-3.5-128B") == 128.0
     assert estimate_model_params("mistralai/Ministral-3-3B-Instruct-2512") == 3.0
     assert estimate_model_params("mistralai/Ministral-3-8B-Instruct-2512") == 8.0
