@@ -62,7 +62,8 @@ class LoadTester:
         start_time = time.perf_counter()
         ttft = None
         tokens = 0
-        last_token_time = start_time
+        token_latencies = []
+        last_token_time = None
 
         try:
             async with session.post(url, json=payload, headers=headers) as response:
@@ -76,21 +77,29 @@ class LoadTester:
                     if line.startswith("data: "):
                         if line == "data: [DONE]": break
 
+                        now = time.perf_counter()
                         # Only count as a token if it contains actual content
+                        is_token = False
                         try:
                             content_json = json.loads(line[6:])
                             if content_json.get("choices") and content_json["choices"][0].get("delta", {}).get("content"):
                                 tokens += 1
+                                is_token = True
                         except json.JSONDecodeError:
                             # Fallback if JSON parsing fails but it's a data line
                             tokens += 1
+                            is_token = True
 
-                        now = time.perf_counter()
-                        if ttft is None: ttft = now - start_time
-                        last_token_time = now
+                        if is_token:
+                            if ttft is None:
+                                ttft = now - start_time
+                            else:
+                                token_latencies.append(now - last_token_time)
+                            last_token_time = now
 
             duration = time.perf_counter() - start_time
-            return {"ttft": ttft, "tokens": tokens, "duration": duration}
+            itl = statistics.mean(token_latencies) if token_latencies else 0
+            return {"ttft": ttft, "tokens": tokens, "duration": duration, "itl": itl}
         except Exception as e:
             log(f"::error::Exception during request: {type(e).__name__}: {e}")
             return None
@@ -114,6 +123,7 @@ class LoadTester:
                 "concurrency": concurrency,
                 "success_rate": len(valid) / num_requests,
                 "avg_ttft": statistics.mean([r['ttft'] for r in valid]),
+                "avg_itl": statistics.mean([r['itl'] for r in valid]),
                 "avg_tps": statistics.mean([r['tokens']/r['duration'] for r in valid]),
                 "total_tps": sum([r['tokens'] for r in valid]) / duration_run
             }
@@ -134,7 +144,8 @@ class LLMPerfTester:
                 ignore_reinit_error=True,
                 runtime_env={"env_vars": {
                     "OPENAI_API_BASE": self.base_url,
-                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token"
+                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token",
+                    "RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO": "0"
                 }}
             )
 
@@ -143,8 +154,12 @@ class LLMPerfTester:
         from llmperf.models import RequestConfig
         from llmperf import common_metrics
 
-        # Create a pool of actors to handle requests
-        clients = [OpenAIChatCompletionsClient.remote() for _ in range(concurrency)]
+        # Create a pool of actors to handle requests.
+        # Cap at 32 actors to avoid "too many worker processes" and Ray resource exhaustion.
+        # Use num_cpus=0 as these actors are primarily waiting for I/O.
+        # Set max_concurrency to allow each actor to handle multiple concurrent requests.
+        num_actors = min(concurrency, 32)
+        clients = [OpenAIChatCompletionsClient.options(num_cpus=0, max_concurrency=1000).remote() for _ in range(num_actors)]
         client_pool = itertools.cycle(clients)
         semaphore = asyncio.Semaphore(concurrency)
 
@@ -187,6 +202,7 @@ class LLMPerfTester:
             "concurrency": concurrency,
             "success_rate": len(valid) / num_requests,
             "avg_ttft": statistics.mean([r[common_metrics.TTFT] for r in valid]),
+            "avg_itl": statistics.mean([r[common_metrics.INTER_TOKEN_LAT] for r in valid]),
             "avg_tps": statistics.mean([r[common_metrics.REQ_OUTPUT_THROUGHPUT] for r in valid]),
             "total_tps": sum([r[common_metrics.NUM_OUTPUT_TOKENS] for r in valid]) / duration_run
         }
