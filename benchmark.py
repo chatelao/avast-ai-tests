@@ -143,7 +143,8 @@ class LLMPerfTester:
                 ignore_reinit_error=True,
                 runtime_env={"env_vars": {
                     "OPENAI_API_BASE": self.base_url,
-                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token"
+                    "OPENAI_API_KEY": self.api_key or "vllm-benchmark-token",
+                    "RAY_ACCEL_ENV_VAR_OVERRIDE_ON_ZERO": "0"
                 }}
             )
 
@@ -196,7 +197,7 @@ class LLMPerfTester:
             "concurrency": concurrency,
             "success_rate": len(valid) / num_requests,
             "avg_ttft": statistics.mean([r[common_metrics.TTFT] for r in valid]),
-            "avg_itl": statistics.mean([r[common_metrics.INTER_TOKEN_LATENCY] for r in valid]),
+            "avg_itl": statistics.mean([r[common_metrics.INTER_TOKEN_LAT] for r in valid]),
             "avg_tps": statistics.mean([r[common_metrics.REQ_OUTPUT_THROUGHPUT] for r in valid]),
             "total_tps": sum([r[common_metrics.NUM_OUTPUT_TOKENS] for r in valid]) / duration_run
         }
