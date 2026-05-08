@@ -16,12 +16,22 @@ def estimate_model_params(model_name):
     """
     model_name_lower = model_name.lower()
 
-    # Explicit mappings for models without size in name or where estimates are needed
+    # 1. First try to extract from name (e.g. 675B, 125M, E2B, A4B)
+    # This handles cases where the model name is specific even if it matches a general mapping.
+    match = re.search(r"(?:[ea])?(\d+(?:\.\d+)?)\s*([mb])", model_name_lower)
+    if match:
+        value = float(match.group(1))
+        unit = match.group(2)
+        if unit == 'm':
+            return value / 1000.0
+        else:
+            return value
+
+    # 2. Fallback to explicit mappings for models without size in name
     # Values are in Billions of parameters.
-    # Some values are best-effort estimates based on model family and naming.
     mappings = {
-        "mistral-small": 22.0,
-        "mistral-large": 123.0,
+        "mistral-small": 119.0,      # Updated for v4
+        "mistral-large": 675.0,      # Updated for v3
         "deepseek-coder-v2-lite": 16.0,
         "deepseek-v4-flash": 284.0,  # Verified count
         "deepseek-v4-pro": 1600.0,   # Verified count
@@ -47,16 +57,6 @@ def estimate_model_params(model_name):
 
     for key, value in mappings.items():
         if key in model_name_lower:
-            return value
-
-    # Regex to find patterns like 7b, 125m, 0.5b
-    match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])", model_name_lower)
-    if match:
-        value = float(match.group(1))
-        unit = match.group(2)
-        if unit == 'm':
-            return value / 1000.0
-        else:
             return value
 
     # Default fallback

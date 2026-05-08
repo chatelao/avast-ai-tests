@@ -56,7 +56,9 @@ async def wait_for_api(url, api_key, sdk, instance_id, timeout=1800, interval=20
 
             # Try to fetch instance logs to show progress
             try:
-                current_logs = sdk.logs(int(instance_id))
+                # sdk.logs is a synchronous call that can block the event loop.
+                # We wrap it in asyncio.to_thread to keep the polling responsive.
+                current_logs = await asyncio.to_thread(sdk.logs, int(instance_id))
                 if isinstance(current_logs, str) and current_logs != last_log_content:
                     new_lines = current_logs[len(last_log_content):]
                     if new_lines:
