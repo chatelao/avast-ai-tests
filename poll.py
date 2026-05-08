@@ -42,7 +42,7 @@ def get_instance_details(instance_id):
         log(f"Error fetching metadata: {e}")
         return None
 
-async def wait_for_api(url, api_key, sdk, instance_id, timeout=1800, interval=20):
+async def wait_for_api(url, api_key, sdk, instance_id, timeout=10800, interval=20):
     endpoint = f"{url}/v1/models"
     log(f"\n--- Starting API Health Check ---")
     log(f"Endpoint: {endpoint}")
@@ -100,7 +100,7 @@ async def wait_for_api(url, api_key, sdk, instance_id, timeout=1800, interval=20
 
 async def main():
     parser = argparse.ArgumentParser(description="Poll Vast.ai instance for readiness")
-    parser.add_argument("--timeout", type=int, default=1800, help="Total timeout in seconds")
+    parser.add_argument("--timeout", type=int, default=10800, help="Total timeout in seconds")
     parser.add_argument("--interval", type=int, default=20, help="Polling interval in seconds")
     args = parser.parse_args()
 
