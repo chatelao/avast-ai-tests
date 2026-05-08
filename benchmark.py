@@ -9,6 +9,7 @@ import sys
 import datetime
 import random
 import itertools
+import shlex
 
 PROMPTS = [
     "Explain quantum physics in one sentence.",
@@ -206,6 +207,114 @@ class LLMPerfTester:
             "total_tps": sum([r[common_metrics.NUM_OUTPUT_TOKENS] for r in valid]) / duration_run
         }
 
+async def run_benchmark(tester, args):
+    all_results = []
+    log(f"Starting benchmark for {args.model}...")
+    for c in args.concurrency_levels:
+        log(f"  Concurrency {c}...")
+        res = await tester.run(c, args.requests_per_level)
+        if res:
+            all_results.append(res)
+            log(f"    TPS: {res['total_tps']:.2f}")
+    return all_results
+
+def report_results(all_results, args):
+    if not all_results:
+        log("::error::No results collected. Exiting with failure.")
+        sys.exit(1)
+
+    summary_file = os.getenv("GITHUB_STEP_SUMMARY")
+    if summary_file:
+        with open(summary_file, "a") as f:
+            f.write(f"## Results: {args.model} on {args.num_gpus}x {args.gpu}\n")
+            f.write("| C | Success Rate | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|---|\n")
+            for r in all_results:
+                f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
+        log(f"Summary written to {summary_file}")
+
+    gpu_str = f"{args.num_gpus}x_{args.gpu.replace(' ', '_')}"
+    timestamp = int(time.time())
+    output_file = os.path.join(args.output_dir, f"benchmark_{gpu_str}_{timestamp}.json")
+    results_json = os.path.join(args.output_dir, "results.json")
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    with open(output_file, "w") as f:
+        json.dump(all_results, f, indent=2)
+    log(f"Results written to {output_file}")
+    with open(results_json, "w") as f:
+        json.dump(all_results, f, indent=2)
+    log(f"Results written to {results_json}")
+
+async def run_remote(args):
+    from vastai.sdk import VastAI
+
+    if not os.path.exists(".vast_instance_id"):
+        log("::error::.vast_instance_id not found")
+        sys.exit(1)
+
+    with open(".vast_instance_id", "r") as f:
+        instance_id = f.read().strip()
+
+    api_key = os.getenv("VAST_AI_API_KEY")
+    if not api_key:
+        log("::error::VAST_AI_API_KEY not set")
+        sys.exit(1)
+
+    sdk = VastAI(api_key=api_key)
+    log(f"Running remote benchmark on instance {instance_id}...")
+
+    # 1. Copy benchmark script to instance
+    log("Copying benchmark.py to instance...")
+    sdk.copy("local:benchmark.py", f"{instance_id}:benchmark.py")
+
+    # 2. Prepare remote command
+    # Filter out --remote and use localhost URL
+    remote_args = []
+    skip_next = False
+    for i, arg in enumerate(sys.argv[1:]):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--remote":
+            continue
+        if arg == "--url":
+            skip_next = True
+            continue
+        remote_args.append(arg)
+
+    remote_args.extend(["--url", "http://localhost:8000"])
+    remote_args.extend(["--output-dir", "results_remote"])
+
+    quoted_args = [shlex.quote(a) for a in remote_args]
+    cmd = (
+        "pip install aiohttp requests tqdm transformers numpy ray && "
+        "pip install git+https://github.com/ray-project/llmperf.git && "
+        "mkdir -p results_remote && "
+        f"python3 benchmark.py {' '.join(quoted_args)}"
+    )
+
+    # 3. Execute remote command
+    log(f"Executing remote command: {cmd}")
+    res = sdk.execute(int(instance_id), cmd)
+    # The result of execute is a dict. Depending on the SDK version it might contain more info.
+    # We log it for debugging and check if we got a response.
+    log(f"Remote execution finished. Result: {str(res)[:200]}")
+
+    # 4. Download results
+    log("Downloading results from instance...")
+    # Download the whole results directory
+    sdk.copy(f"{instance_id}:results_remote/", "local:.")
+
+    # After copying, the files from results_remote/ should be in the local current dir
+    # because of how vastai copy works (it's like scp -r).
+    # Wait, scp -r remote:dir/ local:target/ copies contents of dir into target.
+
+    local_results = "results.json"
+    if os.path.exists(local_results):
+        with open(local_results, "r") as f:
+            return json.load(f)
+    return None
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -216,6 +325,8 @@ async def main():
     parser.add_argument("--requests-per-level", type=int, default=10)
     parser.add_argument("--benchmark-type", choices=["llmperf", "vllm"], default="llmperf",
                         help="Benchmark engine to use (default: llmperf)")
+    parser.add_argument("--remote", action="store_true", help="Run benchmark remote on the Vast.ai instance")
+    parser.add_argument("--output-dir", default=".", help="Directory to save result files")
     args = parser.parse_args()
 
     api_url = args.url
@@ -228,42 +339,16 @@ async def main():
 
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
 
-    if args.benchmark_type == "llmperf":
-        tester = LLMPerfTester(api_url, args.model, vllm_api_key)
+    if args.remote:
+        all_results = await run_remote(args)
     else:
-        tester = LoadTester(api_url, args.model, vllm_api_key)
-    all_results = []
+        if args.benchmark_type == "llmperf":
+            tester = LLMPerfTester(api_url, args.model, vllm_api_key)
+        else:
+            tester = LoadTester(api_url, args.model, vllm_api_key)
+        all_results = await run_benchmark(tester, args)
 
-    log(f"Starting benchmark for {args.model}...")
-    for c in args.concurrency_levels:
-        num_reqs = max(c, args.requests_per_level)
-        log(f"  Concurrency {c} ({num_reqs} requests)...")
-        res = await tester.run(c, num_reqs)
-        if res:
-            all_results.append(res)
-            log(f"    TPS: {res['total_tps']:.2f}")
-
-    if all_results:
-        summary_file = os.getenv("GITHUB_STEP_SUMMARY")
-        if summary_file:
-            with open(summary_file, "a") as f:
-                f.write(f"## Results: {args.model} on {args.num_gpus}x {args.gpu}\n")
-                f.write("| C | Success Rate | Avg TTFT | Avg ITL | Avg TPS | Total TPS |\n|---|---|---|---|---|---|\n")
-                for r in all_results:
-                    f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_itl']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
-            log(f"Summary written to {summary_file}")
-
-        gpu_str = f"{args.num_gpus}x_{args.gpu.replace(' ', '_')}"
-        output_file = f"benchmark_{gpu_str}_{int(time.time())}.json"
-        with open(output_file, "w") as f:
-            json.dump(all_results, f, indent=2)
-        log(f"Results written to {output_file}")
-        with open("results.json", "w") as f:
-            json.dump(all_results, f, indent=2)
-        log(f"Results written to results.json")
-    else:
-        log("::error::No results collected. Exiting with failure.")
-        sys.exit(1)
+    report_results(all_results, args)
 
 if __name__ == "__main__":
     asyncio.run(main())
