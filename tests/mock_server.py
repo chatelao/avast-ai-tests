@@ -81,15 +81,21 @@ async def get_models(request):
     if not is_authorized(request):
         return web.json_response({"error": "Unauthorized"}, status=401)
 
-    # Simulate gemma4 architecture failure if --trust-remote-code is missing
+    # Simulate architecture failure if --trust-remote-code is missing for certain models
     if instances:
         for inst in instances.values():
             env = inst.get("env", {})
-            model = env.get("VLLM_MODEL", "")
+            model = env.get("VLLM_MODEL", "").lower()
             args = env.get("VLLM_ARGS", "")
-            if "gemma-4" in model and "--trust-remote-code" not in args:
+
+            models_trust_remote_code = [
+                "gemma-4", "kimi", "qwen3", "qwen-3.6", "glm-4", "glm-5", "gpt-oss",
+                "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4"
+            ]
+
+            if any(m in model for m in models_trust_remote_code) and "--trust-remote-code" not in args:
                 return web.json_response({
-                    "error": "The checkpoint you are trying to load has model type gemma4 but Transformers does not recognize this architecture."
+                    "error": f"The checkpoint you are trying to load ({model}) requires --trust-remote-code but it is missing in VLLM_ARGS."
                 }, status=500)
 
     return web.json_response({"data": [{"id": "tiny-model"}]})
