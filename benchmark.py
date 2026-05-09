@@ -132,6 +132,7 @@ class LLMPerfTester:
         if not ray.is_initialized():
             log(f"Initializing Ray with OPENAI_API_BASE={self.base_url}")
             ray.init(
+                num_cpus=MAX_RAY_ACTORS,
                 ignore_reinit_error=True,
                 runtime_env={"env_vars": {
                     "OPENAI_API_BASE": self.base_url,
@@ -147,7 +148,7 @@ class LLMPerfTester:
 
         # Create a pool of actors to handle requests
         num_actors = min(concurrency, MAX_RAY_ACTORS)
-        clients = [OpenAIChatCompletionsClient.remote() for _ in range(num_actors)]
+        clients = [OpenAIChatCompletionsClient.options(num_cpus=0).remote() for _ in range(num_actors)]
         client_pool = itertools.cycle(clients)
         semaphore = asyncio.Semaphore(concurrency)
 
