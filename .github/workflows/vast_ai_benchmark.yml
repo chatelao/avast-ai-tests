@@ -69,6 +69,7 @@ on:
         - 'moonshotai/Kimi-K2.6'
         - 'step-ai/Step-3.5-Flash'
         - 'ibm/Granite-4.0-8B-Instruct'
+        - 'microsoft/phi-4'
       concurrency_levels:
         description: 'Space-separated concurrency levels'
         required: true

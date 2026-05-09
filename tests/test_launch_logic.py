@@ -24,6 +24,7 @@ def test_estimate_model_params_new_models():
     assert estimate_model_params("moonshotai/Kimi-K2.6") == 1000.0
     assert estimate_model_params("step-ai/Step-3.5-Flash") == 20.0
     assert estimate_model_params("ibm/Granite-4.0-8B-Instruct") == 8.0
+    assert estimate_model_params("microsoft/phi-4") == 14.7
 
 def test_estimate_model_params_existing_models():
     assert estimate_model_params("facebook/opt-125m") == 0.125
@@ -58,6 +59,7 @@ def test_get_vllm_args_trust_remote_code():
     assert "--trust-remote-code" in get_vllm_args("mistralai/Devstral-2-123B-Instruct-2512", 1, token)
     assert "--trust-remote-code" in get_vllm_args("mistralai/Mistral-Small-4-119B-2603", 1, token)
     assert "--trust-remote-code" in get_vllm_args("mistralai/Mistral-Medium-3.5-128B", 1, token)
+    assert "--trust-remote-code" in get_vllm_args("microsoft/phi-4", 1, token)
 
     # Models that SHOULD NOT have the flag
     assert "--trust-remote-code" not in get_vllm_args("facebook/opt-125m", 1, token)

@@ -38,7 +38,7 @@ jobs:
         HF_TOKEN: "mock-hf-token"
       run: |
         echo "--- Launch ---"
-        python launch.py --gpu "RTX_4090" --model "tiny-model"
+        python launch.py --gpu "RTX_4090" --model "facebook/opt-125m"
 
         echo "--- Poll ---"
         # Use short interval for faster CI
@@ -46,7 +46,7 @@ jobs:
 
         echo "--- Benchmark (LLMPerf) ---"
         python benchmark.py \
-          --model tiny-model \
+          --model facebook/opt-125m \
           --gpu mock-gpu \
           --concurrency-levels 1 2 \
           --requests-per-level 5 \
@@ -54,7 +54,7 @@ jobs:
 
         echo "--- Benchmark (vLLM) ---"
         python benchmark.py \
-          --model tiny-model \
+          --model facebook/opt-125m \
           --gpu mock-gpu \
           --concurrency-levels 1 2 \
           --requests-per-level 5 \
