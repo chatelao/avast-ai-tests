@@ -45,6 +45,14 @@ class LoadTester:
         self.base_url = base_url.rstrip('/')
         self.model_name = model_name
         self.api_key = api_key
+        self.tokenizer = None
+        try:
+            from transformers import AutoTokenizer
+            log(f"Attempting to load tokenizer for {model_name}...")
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+            log("Tokenizer loaded successfully.")
+        except Exception as e:
+            log(f"Could not load tokenizer for {model_name}: {e}. Falling back to heuristic counting.")
 
     async def send_request(self, session, prompt):
         log(f" Sending request with prompt: {prompt[:50]}...")
@@ -80,9 +88,14 @@ class LoadTester:
                         # Only count as a token if it contains actual content
                         try:
                             content_json = json.loads(line[6:])
-                            if content_json.get("choices") and content_json["choices"][0].get("delta", {}).get("content"):
-                                tokens += 1
-                        except json.JSONDecodeError:
+                            delta = content_json.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content")
+                            if content:
+                                if self.tokenizer:
+                                    tokens += len(self.tokenizer.encode(content, add_special_tokens=False))
+                                else:
+                                    tokens += 1
+                        except (json.JSONDecodeError, IndexError, KeyError):
                             # Fallback if JSON parsing fails but it's a data line
                             tokens += 1
 
@@ -127,6 +140,14 @@ class LLMPerfTester:
             self.base_url += "/v1"
         self.model_name = model_name
         self.api_key = api_key
+        self.tokenizer = None
+        try:
+            from transformers import AutoTokenizer
+            log(f"Attempting to load tokenizer for {model_name}...")
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+            log("Tokenizer loaded successfully.")
+        except Exception as e:
+            log(f"Could not load tokenizer for {model_name}: {e}. Falling back to split() counting.")
 
         import ray
         if not ray.is_initialized():
@@ -157,8 +178,13 @@ class LLMPerfTester:
                 client = next(client_pool)
                 prompt_text = random.choice(PROMPTS)
                 # LLMPerf expects prompt as (text, token_count)
-                # Using a simple split for token count estimation
-                prompt = (prompt_text, len(prompt_text.split()))
+                if self.tokenizer:
+                    token_count = len(self.tokenizer.encode(prompt_text))
+                else:
+                    # Fallback to a simple split for token count estimation
+                    token_count = len(prompt_text.split())
+
+                prompt = (prompt_text, token_count)
                 request_config = RequestConfig(
                     model=self.model_name,
                     prompt=prompt,
@@ -195,6 +221,46 @@ class LLMPerfTester:
             "total_tps": sum([r[common_metrics.NUM_OUTPUT_TOKENS] for r in valid]) / duration_run
         }
 
+async def run_benchmark(tester, concurrency_levels, requests_per_level):
+    """Core measurement loop."""
+    all_results = []
+    for c in concurrency_levels:
+        log(f"  Concurrency {c}...")
+        # Saturation Rule: Ensure enough requests to actually test target concurrency
+        num_requests = max(c, requests_per_level)
+        res = await tester.run(c, num_requests)
+        if res:
+            all_results.append(res)
+            log(f"    TPS: {res['total_tps']:.2f}")
+    return all_results
+
+def report_results(all_results, model, gpu, num_gpus):
+    """Generate markdown summaries and JSON output files."""
+    if not all_results:
+        log("::error::No results collected to report.")
+        return
+
+    summary_file = os.getenv("GITHUB_STEP_SUMMARY")
+    if summary_file:
+        with open(summary_file, "a") as f:
+            f.write(f"## Results: {model} on {num_gpus}x {gpu}\n")
+            f.write("| C | Success Rate | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|---|\n")
+            for r in all_results:
+                f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
+        log(f"Summary written to {summary_file}")
+
+    gpu_str = f"{num_gpus}x_{gpu.replace(' ', '_')}"
+    timestamp = int(time.time())
+    output_file = f"benchmark_{gpu_str}_{timestamp}.json"
+
+    with open(output_file, "w") as f:
+        json.dump(all_results, f, indent=2)
+    log(f"Results written to {output_file}")
+
+    with open("results.json", "w") as f:
+        json.dump(all_results, f, indent=2)
+    log(f"Results written to results.json")
+
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True)
@@ -221,34 +287,12 @@ async def main():
         tester = LLMPerfTester(api_url, args.model, vllm_api_key)
     else:
         tester = LoadTester(api_url, args.model, vllm_api_key)
-    all_results = []
 
-    log(f"Starting benchmark for {args.model}...")
-    for c in args.concurrency_levels:
-        log(f"  Concurrency {c}...")
-        res = await tester.run(c, args.requests_per_level)
-        if res:
-            all_results.append(res)
-            log(f"    TPS: {res['total_tps']:.2f}")
+    log(f"Starting benchmark for {args.model} using {args.benchmark_type}...")
+    all_results = await run_benchmark(tester, args.concurrency_levels, args.requests_per_level)
 
     if all_results:
-        summary_file = os.getenv("GITHUB_STEP_SUMMARY")
-        if summary_file:
-            with open(summary_file, "a") as f:
-                f.write(f"## Results: {args.model} on {args.num_gpus}x {args.gpu}\n")
-                f.write("| C | Success Rate | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|---|\n")
-                for r in all_results:
-                    f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
-            log(f"Summary written to {summary_file}")
-
-        gpu_str = f"{args.num_gpus}x_{args.gpu.replace(' ', '_')}"
-        output_file = f"benchmark_{gpu_str}_{int(time.time())}.json"
-        with open(output_file, "w") as f:
-            json.dump(all_results, f, indent=2)
-        log(f"Results written to {output_file}")
-        with open("results.json", "w") as f:
-            json.dump(all_results, f, indent=2)
-        log(f"Results written to results.json")
+        report_results(all_results, args.model, args.gpu, args.num_gpus)
     else:
         log("::error::No results collected. Exiting with failure.")
         sys.exit(1)
