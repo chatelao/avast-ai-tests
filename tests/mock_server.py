@@ -90,7 +90,7 @@ async def get_models(request):
 
             models_trust_remote_code = [
                 "gemma-4", "kimi", "qwen3", "qwen-3.6", "glm-4", "glm-5", "gpt-oss",
-                "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4"
+                "deepseek", "step", "granite", "mistral", "ministral", "devstral", "llama-4", "phi"
             ]
 
             if any(m in model for m in models_trust_remote_code) and "--trust-remote-code" not in args:
@@ -108,8 +108,8 @@ async def search_offers(request):
                 "id": 1001,
                 "dph_total": 0.45,
                 "gpu_name": "RTX 4090",
-                "gpu_ram": 80000,
-                "disk_space": 500
+                "gpu_ram": 2000000,
+                "disk_space": 10000
             }
         ]
     })
