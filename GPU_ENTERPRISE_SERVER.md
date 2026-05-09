@@ -14,19 +14,50 @@ This document outlines recommended GPU server configurations for enterprise Larg
 
 ---
 
-## 1. Ultra-Scale: High-Performance Training (HGX/SXM)
-Designed for training large foundation models and serving massive MoE models (e.g., DeepSeek-V3, Llama-4-Scout) with minimal latency.
+## 1. Ultra-Scale: Elite Infrastructure
+Designed for the most demanding LLM workloads. This section provides a 3:1 ratio of inference-optimized to learning-optimized solutions.
 
-*   **GPU:** 8x NVIDIA B200 / H200 SXM
-*   **Interconnect:** NVIDIA NVLink + NVSwitch (up to 1.8TB/s for B200)
-*   **Server Mainboard/Platform:**
-    *   **Supermicro:** SYS-821GE-TNHR (Hopper) / Liquid-cooled Blackwell clusters.
-    *   **Dell:** PowerEdge XE9680 (supports H100/H200/B200).
-*   **CPU:** Dual 5th Gen Intel Xeon Scalable or AMD EPYC 9005 Series.
-*   **RAM:** 2TB+ DDR5-5600 ECC.
-*   **Networking:** 8x 400G/800G InfiniBand/Ethernet (1:1 GPU-to-NIC ratio).
-*   **Pricing Guess:** $400,000 - $600,000+ per node.
-*   **Availability:** **Low**. Blackwell (B200) is in extreme demand with priority given to hyperscalers. H200 lead times are typically 3-6 months.
+### 1.1. Massive Throughput Inference (Blackwell B200)
+Optimized for serving massive MoE models (e.g., DeepSeek-V4, Llama-4-Maverick) to millions of concurrent users with maximum throughput.
+
+*   **GPU:** 8x NVIDIA B200 SXM (180GB HBM3e)
+*   **Interconnect:** NVLink 5 (1.8TB/s bidirectional)
+*   **Server Platform:** Supermicro SYS-821GE-TNHR (Liquid-cooled recommended)
+*   **Specs:** Dual AMD EPYC 9005, 2TB DDR5-6400, 8x 800G Ethernet
+*   **Pricing Guess:** $500,000 - $650,000+
+*   **Availability:** **Low**. Priority given to CSPs; 6-9 month lead times for enterprise.
+
+### 1.2. Large-Context Real-Time Inference (Hopper H200)
+Best for RAG and agentic workflows requiring massive context windows (128k+) and low Time-To-First-Token (TTFT).
+
+*   **GPU:** 8x NVIDIA H200 SXM (141GB HBM3e)
+*   **Interconnect:** NVLink 4 (900GB/s)
+*   **Server Platform:** Dell PowerEdge XE9680
+*   **Specs:** Dual Intel Xeon Platinum (Gen 5), 2TB DDR5-5600, 400G InfiniBand
+*   **Pricing Guess:** $400,000 - $520,000
+*   **Availability:** **Moderate**. Lead times stabilized at ~3 months.
+
+### 1.3. Elastic Rack-Scale Inference (GB200 NVL72)
+The pinnacle of inference density. A single rack acting as a massive 72-GPU virtual instance for trillion-parameter models.
+
+*   **GPU:** 72x NVIDIA Blackwell GPUs (Grace Blackwell Superchips)
+*   **Interconnect:** NVLink Switch System (Full non-blocking)
+*   **Server Platform:** Supermicro NVIDIA GB300 NVL72 Rack
+*   **Specs:** 36x NVIDIA Grace CPUs, Liquid-cooled, Rack-scale integration
+*   **Pricing Guess:** $3,000,000 - $4,500,000 per rack
+*   **Availability:** **Extreme Demand**. Targeted at sovereign AI and global enterprises.
+
+### 1.4. Foundation Model Training Cluster (Learning Solution)
+Optimized for "from-scratch" training of domain-specific foundation models or large-scale continual pre-training.
+
+*   **GPU:** NVIDIA HGX H200 or B200 SuperClusters
+*   **Interconnect:** InfiniBand NDR (400G/800G) Rail-Optimized topology
+*   **Server Platform:** Supermicro SYS-821GE-TNHR (Air or Liquid)
+*   **Specs:** High-speed NVMe storage tiers (Petabyte scale) for checkpointing
+*   **Pricing Guess:** $450,000+ per node (Clusters typically 32-1024+ nodes)
+*   **Availability:** **Varies**. Managed via direct vendor engagement for cluster design.
+
+---
 
 ## 2. High-Performance: H100 Standard
 The current industry benchmark for enterprise LLM training and high-end inference.
