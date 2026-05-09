@@ -4,56 +4,62 @@ This document outlines recommended GPU server configurations for enterprise Larg
 
 ## Summary Table
 
-| Tier | Use Case | GPU Configuration | Est. Price (USD) | Nutanix Ready |
-| :--- | :--- | :--- | :--- | :--- |
-| **Ultra-Scale** | Foundation Training / Large MoE | 8x H100/H200/B200 (SXM) | $350k - $500k+ | Yes (AHV + vGPU) |
-| **Mid-Range** | Fine-tuning / Perf Inference | 8x L40S (PCIe) | $80k - $130k | Yes (vGPU/NVAIE) |
-| **Entry-Level** | Edge / Standard Inference | 4x L4 (PCIe) | $15k - $30k | Yes (vGPU) |
+| Tier | Use Case | GPU Configuration | Est. Price (USD) | Nutanix Ready | Market Availability |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Ultra-Scale** | Foundation Training / Large MoE | 8x B200 / H200 (SXM) | $400k - $600k+ | Yes (AHV + vGPU) | Limited / High Lead Time |
+| **High-Performance**| Large Model Training / Inf | 8x H100 (SXM) | $300k - $480k | Yes (AHV + vGPU) | Improving / Moderate |
+| **Legacy High-Perf** | Training / Large Batch Inf | 8x A100 80GB (SXM) | $130k - $330k | Yes (AHV + vGPU) | Secondary Market / Limited New |
+| **Mid-Range** | Fine-tuning / Perf Inference | 8x L40S (PCIe) | $80k - $130k | Yes (vGPU/NVAIE) | General Availability |
+| **Entry-Level** | Edge / Standard Inference | 4x L4 (PCIe) | $15k - $30k | Yes (vGPU) | Widely Available |
 
 ---
 
 ## 1. Ultra-Scale: High-Performance Training (HGX/SXM)
 Designed for training large foundation models and serving massive MoE models (e.g., DeepSeek-V3, Llama-4-Scout) with minimal latency.
 
-*   **GPU:** 8x NVIDIA H100 / H200 / B200 SXM5
-*   **Interconnect:** NVIDIA NVLink + NVSwitch (up to 900GB/s bandwidth)
+*   **GPU:** 8x NVIDIA B200 / H200 SXM
+*   **Interconnect:** NVIDIA NVLink + NVSwitch (up to 1.8TB/s for B200)
 *   **Server Mainboard/Platform:**
-    *   **Supermicro:** SYS-821GE-TNHR (Air-cooled) or Liquid-cooled variants.
-    *   **Dell:** PowerEdge XE9680 (based on HGX reference architecture).
-*   **CPU:** Dual 4th/5th Gen Intel Xeon Scalable or AMD EPYC 9004 Series (up to 128 cores).
-*   **RAM:** 2TB+ DDR5-4800 ECC.
-*   **Networking:** 8x 400G InfiniBand/Ethernet (1:1 GPU-to-NIC ratio) for multi-node clustering.
-*   **Storage:** 30TB+ NVMe Gen5 SSDs.
-*   **Pricing Guess:** $350,000 - $500,000 per node.
-*   **Nutanix Compatibility:** Supported via Nutanix AHV with NVIDIA vGPU software. Requires NVIDIA AI Enterprise (NVAIE) licensing for full stack support.
+    *   **Supermicro:** SYS-821GE-TNHR (Hopper) / Liquid-cooled Blackwell clusters.
+    *   **Dell:** PowerEdge XE9680 (supports H100/H200/B200).
+*   **CPU:** Dual 5th Gen Intel Xeon Scalable or AMD EPYC 9005 Series.
+*   **RAM:** 2TB+ DDR5-5600 ECC.
+*   **Networking:** 8x 400G/800G InfiniBand/Ethernet (1:1 GPU-to-NIC ratio).
+*   **Pricing Guess:** $400,000 - $600,000+ per node.
+*   **Availability:** **Low**. Blackwell (B200) is in extreme demand with priority given to hyperscalers. H200 lead times are typically 3-6 months.
 
-## 2. Mid-Range: Performance Inference & Fine-Tuning (PCIe)
+## 2. High-Performance: H100 Standard
+The current industry benchmark for enterprise LLM training and high-end inference.
+
+*   **GPU:** 8x NVIDIA H100 SXM5 (80GB)
+*   **Server Mainboard/Platform:** Supermicro SYS-821GE-TNHR / Dell PowerEdge XE9680.
+*   **Pricing Guess:** $300,000 - $480,000.
+*   **Availability:** **Moderate**. Lead times have improved significantly from the 2023 peak but still require planned procurement.
+
+## 3. Legacy High-Performance: A100 80GB
+Still highly capable for massive batch inference and training where the latest transformer engine (FP8) is not a requirement.
+
+*   **GPU:** 8x NVIDIA A100 80GB SXM4
+*   **Server Mainboard/Platform:** Supermicro SYS-420GP-TNAR / Dell PowerEdge XE8545.
+*   **CPU:** Dual AMD EPYC 7003 (Milan) or Intel Xeon 3rd Gen (Ice Lake).
+*   **RAM:** 1TB - 2TB DDR4-3200 ECC.
+*   **Pricing Guess:** $130,000 (Refurbished/Milan) - $330,000 (New Old Stock).
+*   **Availability:** **Limited New / High Secondary**. Most A100 systems are now sourced through secondary markets or specialized value-added resellers (VARs).
+
+## 4. Mid-Range: Performance Inference & Fine-Tuning (PCIe)
 The "workhorse" of the enterprise AI lab. Ideal for fine-tuning 70B+ models or high-throughput inference using L40S.
 
 *   **GPU:** 8x NVIDIA L40S (48GB GDDR6 each)
-*   **Interconnect:** PCIe Gen5 with NVLink Bridge (optional).
-*   **Server Mainboard/Platform:**
-    *   **Supermicro:** AS-4125GS-TNRT (Dual AMD EPYC) or SYS-421GU-TNXR (Intel).
-*   **CPU:** Dual AMD EPYC 9004 or Intel Xeon Scalable (32-64 cores per socket).
-*   **RAM:** 1TB DDR5 ECC.
-*   **Networking:** Dual 100G/200G Ethernet.
-*   **Storage:** 15TB+ NVMe Gen4/Gen5 SSDs.
+*   **Server Mainboard/Platform:** Supermicro AS-4125GS-TNRT (Dual AMD EPYC) or SYS-421GU-TNXR (Intel).
 *   **Pricing Guess:** $80,000 - $130,000.
-*   **Nutanix Compatibility:** Fully certified for Nutanix "GPT-in-a-Box". Supports AHV vGPU and NVAIE.
+*   **Availability:** **High**. L40S is widely available with short lead times. It is often the best choice for immediate project starts.
 
-## 3. Entry-Level: Edge & Small Model Inference
+## 5. Entry-Level: Edge & Small Model Inference
 Cost-effective solution for deploying specialized models (e.g., Gemma 2 9B, Mistral Small) and RAG applications at the edge.
 
 *   **GPU:** 4x NVIDIA L4 (24GB GDDR6 low-profile)
-*   **Interconnect:** PCIe Gen4/Gen5.
-*   **Server Mainboard/Platform:**
-    *   **Supermicro:** SYS-111E-WR (1U) or SYS-221H-TNR (2U).
-*   **CPU:** Single or Dual Intel Xeon Scalable (16-32 cores).
-*   **RAM:** 256GB - 512GB DDR5.
-*   **Networking:** Dual 10G/25G Ethernet.
-*   **Storage:** 7.68TB NVMe SSD.
 *   **Pricing Guess:** $15,000 - $30,000.
-*   **Nutanix Compatibility:** Excellent. Low power draw and PCIe density make these ideal for distributed Nutanix clusters.
+*   **Availability:** **High**. Stock is generally available through standard distribution channels.
 
 ---
 
@@ -62,11 +68,10 @@ Cost-effective solution for deploying specialized models (e.g., Gemma 2 9B, Mist
 ### Nutanix GPT-in-a-Box
 Nutanix offers a pre-validated software-defined AI solution called **GPT-in-a-Box**. It simplifies the deployment of AI infrastructure by providing:
 *   **Nutanix AHV:** The primary hypervisor for running GPU-accelerated VMs.
-*   **NVIDIA vGPU Support:** Allows slicing physical GPUs into virtual instances or aggregating multiple GPUs into a single VM.
-*   **Kubernetes Integration:** Uses Nutanix Kubernetes Engine (NKE) to orchestrate LLM containers (vLLM, TGI).
+*   **NVIDIA vGPU Support:** Supported for A100, H100, H200, L40S, and L4.
 *   **Data Services:** Nutanix Objects/Files provides the S3-compatible storage needed for model weights and training datasets.
 
 ### Technical Requirements
 1.  **NVIDIA AI Enterprise (NVAIE):** Mandatory for official support and access to optimized frameworks.
 2.  **vGPU Licensing:** Required for AHV to communicate with the NVIDIA driver stack.
-3.  **HCI Interconnect:** Ensure 25GbE+ backend networking between Nutanix nodes to handle high-speed storage traffic during LLM loading.
+3.  **HCI Interconnect:** Ensure 25GbE+ backend networking between Nutanix nodes.
