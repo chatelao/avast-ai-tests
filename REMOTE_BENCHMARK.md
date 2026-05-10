@@ -29,6 +29,8 @@ scp -P <SSH_PORT> benchmark.py requirements.txt root@<INSTANCE_IP>:/root/
 ### 3. Install Dependencies Remotely
 SSH into the instance and install the benchmarking dependencies.
 
+> **Note:** For `llmperf` mode, a Python 3.10 environment is required.
+
 ```bash
 vastai ssh-url <INSTANCE_ID>
 # Inside the SSH session:
@@ -39,8 +41,21 @@ pip install -r requirements.txt
 Run the script targeting `localhost`. Since it's running on the same machine as the server, network latency is effectively zero.
 
 ```bash
-python3 benchmark.py --model <MODEL_ID> --url http://localhost:8000 --concurrency-levels 1 4 16 64 256 --requests-per-level 100 --benchmark-type vllm
+python3 benchmark.py \
+    --model <MODEL_ID> \
+    --gpu <GPU_MODEL> \
+    --num-gpus <COUNT> \
+    --url http://localhost:8000 \
+    --concurrency-levels 1 4 16 64 256 \
+    --requests-per-level 256 \
+    --benchmark-type llmperf
 ```
+
+### Key Options Explained
+
+*   **`--gpu` & `--num-gpus`**: Crucial for result labeling. The output filenames and reports will use these to identify the hardware configuration.
+*   **`--requests-per-level`**: Follow the **Saturation Rule**. Ensure this is at least equal to your highest concurrency level (e.g., 256) to ensure the target concurrency is actually reached and maintained during the test.
+*   **`--benchmark-type llmperf`**: Recommended for high-concurrency testing. It uses Ray actors to distribute the load generation, preventing the benchmark script itself from becoming a CPU bottleneck.
 
 ### 5. Collecting Results
 The results will be saved as JSON files on the instance. You can copy them back to your local machine:
