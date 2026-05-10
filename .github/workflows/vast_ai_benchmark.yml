@@ -104,6 +104,11 @@ on:
         options:
         - 'llmperf'
         - 'vllm'
+      remote:
+        description: 'Run benchmark remotely on Vast.ai instance'
+        required: true
+        default: false
+        type: boolean
 
 jobs:
   benchmark:
@@ -141,7 +146,8 @@ jobs:
       run: |
         python poll.py
 
-    - name: Benchmark
+    - name: Benchmark (Local)
+      if: github.event.inputs.remote == 'false'
       run: |
         python benchmark.py \
           --gpu "${{ github.event.inputs.gpu }}" \
@@ -150,6 +156,57 @@ jobs:
           --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
           --requests-per-level ${{ github.event.inputs.requests_per_level }} \
           --benchmark-type "${{ github.event.inputs.benchmark_type }}"
+
+    - name: Benchmark (Remote)
+      if: github.event.inputs.remote == 'true'
+      env:
+        VAST_AI_API_KEY: ${{ secrets.VAST_AI_API_KEY }}
+      run: |
+        ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa -N ""
+        INSTANCE_ID=$(cat .vast_instance_id)
+        vastai attach ssh $INSTANCE_ID ~/.ssh/id_rsa.pub
+
+        # Give it a moment to propagate
+        sleep 5
+
+        SSH_URL=$(vastai ssh-url $INSTANCE_ID | tr -d '\r')
+        # ssh://root@IP:PORT
+        SSH_HOST_PORT=$(echo $SSH_URL | sed 's/ssh:\/\/root@//')
+        SSH_IP=$(echo $SSH_HOST_PORT | cut -d: -f1)
+        SSH_PORT=$(echo $SSH_HOST_PORT | cut -d: -f2)
+
+        echo "Connecting to $SSH_IP:$SSH_PORT"
+
+        # Wait for SSH to be ready
+        TIMEOUT=300
+        START_TIME=$(date +%s)
+        while ! ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p $SSH_PORT root@$SSH_IP "exit" 2>/dev/null; do
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - START_TIME))
+          if [ $ELAPSED -gt $TIMEOUT ]; then
+            echo "Timeout waiting for SSH"
+            exit 1
+          fi
+          echo "Waiting for SSH ($ELAPSED/s)..."
+          sleep 10
+        done
+
+        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -P $SSH_PORT benchmark.py requirements.txt root@$SSH_IP:/root/
+
+        ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -p $SSH_PORT root@$SSH_IP "
+          pip install -r requirements.txt
+          python3 benchmark.py \
+            --model \"${{ github.event.inputs.model }}\" \
+            --gpu \"${{ github.event.inputs.gpu }}\" \
+            --num-gpus ${{ github.event.inputs.num_gpus }} \
+            --url http://localhost:8000 \
+            --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
+            --requests-per-level ${{ github.event.inputs.requests_per_level }} \
+            --benchmark-type \"${{ github.event.inputs.benchmark_type }}\"
+        "
+
+        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -P $SSH_PORT root@$SSH_IP:/root/benchmark_*.json .
+        scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -P $SSH_PORT root@$SSH_IP:/root/results.json .
 
     - name: Teardown
       if: always()
