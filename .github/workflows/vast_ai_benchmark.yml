@@ -104,6 +104,11 @@ on:
         options:
         - 'llmperf'
         - 'vllm'
+      enable_prefix_caching:
+        description: 'Enable vLLM prefix caching'
+        required: true
+        default: false
+        type: boolean
       remote:
         description: 'Run benchmark remotely on Vast.ai instance'
         required: true
@@ -138,7 +143,8 @@ jobs:
           --num-gpus "${{ github.event.inputs.num_gpus }}" \
           --model "${{ github.event.inputs.model }}" \
           --template "${{ github.event.inputs.template }}" \
-          --disk "${{ github.event.inputs.disk }}"
+          --disk "${{ github.event.inputs.disk }}" \
+          ${{ github.event.inputs.enable_prefix_caching == 'true' && '--enable-prefix-caching' || '' }}
 
     - name: Poll
       env:
@@ -155,7 +161,8 @@ jobs:
           --model "${{ github.event.inputs.model }}" \
           --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
           --requests-per-level ${{ github.event.inputs.requests_per_level }} \
-          --benchmark-type "${{ github.event.inputs.benchmark_type }}"
+          --benchmark-type "${{ github.event.inputs.benchmark_type }}" \
+          ${{ github.event.inputs.enable_prefix_caching == 'true' && '--enable-prefix-caching' || '' }}
 
     - name: Benchmark (Remote)
       if: github.event.inputs.remote == 'true'
@@ -202,7 +209,8 @@ jobs:
             --url http://localhost:8000 \
             --concurrency-levels ${{ github.event.inputs.concurrency_levels }} \
             --requests-per-level ${{ github.event.inputs.requests_per_level }} \
-            --benchmark-type \"${{ github.event.inputs.benchmark_type }}\"
+            --benchmark-type \"${{ github.event.inputs.benchmark_type }}\" \
+            ${{ github.event.inputs.enable_prefix_caching == 'true' && '--enable-prefix-caching' || '' }}
         "
 
         scp -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -P $SSH_PORT root@$SSH_IP:/root/benchmark_*.json .

@@ -234,7 +234,7 @@ async def run_benchmark(tester, concurrency_levels, requests_per_level):
             log(f"    TPS: {res['total_tps']:.2f}")
     return all_results
 
-def report_results(all_results, model, gpu, num_gpus):
+def report_results(all_results, model, gpu, num_gpus, enable_prefix_caching=False):
     """Generate markdown summaries and JSON output files."""
     if not all_results:
         log("::error::No results collected to report.")
@@ -244,6 +244,7 @@ def report_results(all_results, model, gpu, num_gpus):
     if summary_file:
         with open(summary_file, "a") as f:
             f.write(f"## Results: {model} on {num_gpus}x {gpu}\n")
+            f.write(f"**Prefix Caching:** {'Enabled' if enable_prefix_caching else 'Disabled'}\n\n")
             f.write("| C | Success Rate | Avg TTFT | Avg TPS | Total TPS |\n|---|---|---|---|---|\n")
             for r in all_results:
                 f.write(f"| {r['concurrency']} | {r['success_rate']*100:.1f}% | {r['avg_ttft']:.3f} | {r['avg_tps']:.2f} | {r['total_tps']:.2f} |\n")
@@ -253,12 +254,20 @@ def report_results(all_results, model, gpu, num_gpus):
     timestamp = int(time.time())
     output_file = f"benchmark_{gpu_str}_{timestamp}.json"
 
+    output_data = {
+        "model": model,
+        "gpu": gpu,
+        "num_gpus": num_gpus,
+        "enable_prefix_caching": enable_prefix_caching,
+        "results": all_results
+    }
+
     with open(output_file, "w") as f:
-        json.dump(all_results, f, indent=2)
+        json.dump(output_data, f, indent=2)
     log(f"Results written to {output_file}")
 
     with open("results.json", "w") as f:
-        json.dump(all_results, f, indent=2)
+        json.dump(output_data, f, indent=2)
     log(f"Results written to results.json")
 
 async def main():
@@ -271,6 +280,7 @@ async def main():
     parser.add_argument("--requests-per-level", type=int, default=10)
     parser.add_argument("--benchmark-type", choices=["llmperf", "vllm"], default="llmperf",
                         help="Benchmark engine to use (default: llmperf)")
+    parser.add_argument("--enable-prefix-caching", action="store_true", help="Enable prefix caching (for reporting)")
     args = parser.parse_args()
 
     api_url = args.url
@@ -292,7 +302,7 @@ async def main():
     all_results = await run_benchmark(tester, args.concurrency_levels, args.requests_per_level)
 
     if all_results:
-        report_results(all_results, args.model, args.gpu, args.num_gpus)
+        report_results(all_results, args.model, args.gpu, args.num_gpus, enable_prefix_caching=args.enable_prefix_caching)
     else:
         log("::error::No results collected. Exiting with failure.")
         sys.exit(1)

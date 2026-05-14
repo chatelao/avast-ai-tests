@@ -43,6 +43,10 @@ from launch import get_vllm_args
 
 def test_get_vllm_args_trust_remote_code():
     token = "test-token"
+    # Verify prefix caching flag
+    assert "--enable-prefix-caching" in get_vllm_args("opt-125m", 1, token, enable_prefix_caching=True)
+    assert "--enable-prefix-caching" not in get_vllm_args("opt-125m", 1, token, enable_prefix_caching=False)
+
     # Models that SHOULD have the flag
     assert "--trust-remote-code" in get_vllm_args("moonshotai/Kimi-K2.5", 1, token)
     assert "--trust-remote-code" in get_vllm_args("moonshotai/Kimi-K2.6", 1, token)

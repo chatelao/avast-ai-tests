@@ -62,7 +62,7 @@ def test_report_results(tmp_path):
         assert os.path.exists("results.json")
         with open("results.json", "r") as f:
             data = json.load(f)
-            assert data[0]["concurrency"] == 1
+            assert data["results"][0]["concurrency"] == 1
 
         # Cleanup
         if os.path.exists("results.json"):
