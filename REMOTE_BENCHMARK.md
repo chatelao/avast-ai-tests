@@ -48,11 +48,13 @@ python3 benchmark.py \
     --url http://localhost:8000 \
     --concurrency-levels 1 4 16 64 256 \
     --requests-per-level 256 \
-    --benchmark-type llmperf
+    --benchmark-type llmperf \
+    --enable-prefix-caching
 ```
 
 ### Key Options Explained
 
+*   **`--enable-prefix-caching`**: Toggle the vLLM prefix caching feature. This must be passed both to `launch.py` (to enable it on the server) and `benchmark.py` (to ensure it's correctly reported in the results).
 *   **`--gpu` & `--num-gpus`**: Crucial for result labeling. The output filenames and reports will use these to identify the hardware configuration.
 *   **`--requests-per-level`**: Follow the **Saturation Rule**. Ensure this is at least equal to your highest concurrency level (e.g., 256) to ensure the target concurrency is actually reached and maintained during the test.
 *   **`--benchmark-type llmperf`**: Recommended for high-concurrency testing. It uses Ray actors to distribute the load generation, preventing the benchmark script itself from becoming a CPU bottleneck.

@@ -63,8 +63,11 @@ def estimate_model_params(model_name):
     # Default fallback
     return 7.0 # Default to 7B if unknown
 
-def get_vllm_args(model, num_gpus, vllm_api_key):
+def get_vllm_args(model, num_gpus, vllm_api_key, enable_prefix_caching=False):
     vllm_args = f"--dtype auto --enforce-eager --max-model-len 512 --block-size 16 --port 8000 --api-key {vllm_api_key}"
+
+    if enable_prefix_caching:
+        vllm_args += " --enable-prefix-caching"
 
     if num_gpus > 1:
         vllm_args += f" --tensor-parallel-size {num_gpus}"
@@ -93,6 +96,7 @@ def main():
     parser.add_argument("--model", type=str, required=True)
     parser.add_argument("--template", "--template-hash", dest="template", type=str, default="38b2b68cf896e8582dff6f305a2041b1")
     parser.add_argument("--disk", type=float, default=10)
+    parser.add_argument("--enable-prefix-caching", action="store_true", help="Enable vLLM prefix caching")
     args = parser.parse_args()
 
     api_key = os.getenv("VAST_AI_API_KEY")
@@ -131,7 +135,7 @@ def main():
 
     hf_token = os.getenv("HF_TOKEN", "")
     vllm_api_key = os.getenv("VLLM_API_KEY_OVERRIDE", "vllm-benchmark-token")
-    vllm_args = get_vllm_args(args.model, args.num_gpus, vllm_api_key)
+    vllm_args = get_vllm_args(args.model, args.num_gpus, vllm_api_key, enable_prefix_caching=args.enable_prefix_caching)
 
     env_dict = {
         "VLLM_MODEL": args.model,
